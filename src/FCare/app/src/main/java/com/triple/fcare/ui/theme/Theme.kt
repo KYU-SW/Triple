@@ -1,58 +1,50 @@
 package com.triple.fcare.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import com.triple.fcare.engine.Grade
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+private val LightColors = lightColorScheme(
+    primary = Blue40,
     onPrimary = Color.White,
+    primaryContainer = Blue90,
+    onPrimaryContainer = Blue10,
+    secondary = Teal40,
     onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    secondaryContainer = Color(0xFFCCEFEA),
+    background = Surface,
+    surface = Surface,
+    surfaceContainer = Color.White,
+    surfaceContainerLow = Color.White,
+    surfaceContainerHigh = Blue95,
 )
 
+private val DarkColors = darkColorScheme(
+    primary = Blue80,
+    onPrimary = Blue10,
+    primaryContainer = Blue30,
+    onPrimaryContainer = Blue90,
+    secondary = Teal80,
+)
+
+/** 브랜드 색을 항상 쓰도록 동적 색상(배경화면 색 따라가기)은 쓰지 않는다. */
 @Composable
-fun FCareTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun FCareTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = if (darkTheme) DarkColors else LightColors,
         typography = Typography,
-        content = content
+        content = content,
     )
+}
+
+/** 등급별 표시 색 */
+fun Grade.color(): Color = when (this) {
+    Grade.TIRED -> GradeTired
+    Grade.NORMAL -> GradeNormal
+    Grade.COMFORT -> GradeComfort
+    Grade.LIGHT -> GradeLight
 }
