@@ -84,7 +84,7 @@ Galaxy Watch ─▶ Samsung Health ─▶ Health Connect ─▶ FCare 앱 (휴�
 | 저장 | Room 2.7 (기기 안 저장, Android 자동 백업·CSV 내보내기) |
 | 백그라운드 | WorkManager 2.10 (04:00~12:00 1시간 간격 확인, 12:00 마감) |
 | AI (선택) | Google Gemini API (`gemini-2.5-flash`, 추가 라이브러리 없이 HTTPS 호출) |
-| 시험 | JUnit 단위시험 22개 (계산 엔진 U-01~16, 피드백 U-17~22) |
+| 시험 | JUnit 단위시험 31개 (계산 엔진 U-01~16, 피드백 U-17~22, 원자료 처리 U-23~31), engine 줄 커버리지 95.0% |
 | 협업 도구 | Microsoft Teams, Microsoft Project, GitHub |
 
 ## 빌드와 실행
@@ -96,7 +96,7 @@ Galaxy Watch ─▶ Samsung Health ─▶ Health Connect ─▶ FCare 앱 (휴�
    gemini.model=gemini-2.5-flash
    ```
 3. Galaxy Watch → Samsung Health → Health Connect 연동이 켜진 Android 13 이상 휴대폰에서 실행합니다. Android 13은 Health Connect 앱을 따로 설치해야 합니다.
-4. 단위시험은 `app/src/test/java/com/triple/fcare/engine/`의 `RecoveryEngineTest`, `FeedbackEngineTest`를 실행합니다.
+4. 단위시험은 `app/src/test/java/com/triple/fcare/engine/` 폴더를 오른쪽 클릭해 실행합니다 (`RecoveryEngineTest`, `FeedbackEngineTest`, `MetricsEngineTest`).
 
 ## 진행 현황
 
@@ -105,10 +105,10 @@ Galaxy Watch ─▶ Samsung Health ─▶ Health Connect ─▶ FCare 앱 (휴�
 | 1 | 제안 | 완료 | 로고, 아키텍처, 초기개발 기획서 |
 | 2 | 분석 | 완료 (재작업 반영) | 산출물관리기획서, 형상관리기획서, 요구사항 분석서, 요구사항 심사서, 위험관리계획서, 품질관리계획서 |
 | 3 | 설계 | 완료 (정정 반영) | 기본설계서, 상세설계서 |
-| 4 | 구현 | 진행 중 | 앱 전체 구현, 단위시험 22개 통과, 실기기 확인 중 |
-| 5 | 시험 | 예정 | 단위시험 계획서·결과서, 통합시험 계획서·결과서 |
+| 4 | 구현 | 완료 | 앱 전체 구현 (`src/FCare`) |
+| 5 | 시험 | 진행 중 | 단위시험 계획서·결과서(31개 통과), 통합시험 계획서 / 통합시험(팀원 실기기, 2026-11-06 ~ 12-04) 진행 중, 결과서 예정 |
 
-_기준일: 2026-11-13_
+_기준일: 2026-11-16_
 
 ## 폴더 구성
 
@@ -117,7 +117,7 @@ _기준일: 2026-11-13_
 | `docs/1_제안` | 초기개발 기획서 |
 | `docs/2_분석` | 산출물관리기획서, 형상관리기획서, 요구사항 분석서, 요구사항 심사서, 위험관리계획서, 품질관리계획서 |
 | `docs/3_설계` | 기본설계서, 상세설계서 |
-| `docs/5_시험` | 단위·통합시험 계획서와 결과서 (예정) |
+| `docs/5_시험` | 단위시험 계획서·결과서, 통합시험 계획서 (통합시험 결과서는 예정) |
 | `src/FCare` | Android 앱 소스코드 |
 
 문서 파일 이름은 `FCare <문서명>.docx`이며 버전 번호를 붙이지 않습니다. 변경 이력은 커밋 기록으로 확인합니다.
