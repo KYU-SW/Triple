@@ -4,7 +4,26 @@
 
 2026 창의설계 2 · **Triple** 팀
 
+![Android](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
+![Health Connect](https://img.shields.io/badge/Health%20Connect-1.1.0--alpha10-34A853)
+![Unit tests](https://img.shields.io/badge/unit%20tests-31%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/engine%20line%20coverage-95%25-brightgreen)
+
 ---
+
+## 목차
+
+1. [프로젝트 소개](#프로젝트-소개)
+2. [주요 기능](#주요-기능)
+3. [사용하는 데이터](#사용하는-데이터)
+4. [회복 점수 계산 (요약)](#회복-점수-계산-요약)
+5. [데이터 흐름과 앱 구조](#데이터-흐름과-앱-구조)
+6. [기술 스택](#기술-스택)
+7. [빌드와 실행](#빌드와-실행)
+8. [진행 현황](#진행-현황)
+9. [폴더 구성](#폴더-구성)
 
 ## 프로젝트 소개
 
@@ -32,6 +51,12 @@
 ### 화면 구성
 
 시작 → 최초 설정(프로필) → Health Connect 권한 요청 → 하단 탭 **홈 / 피드백 / 기록 / 프로필**
+
+<!-- 화면 캡처: docs/images/에 screen_home.png, screen_feedback.png, screen_history.png, screen_profile.png를 넣은 뒤 아래 주석을 풀면 표시됩니다.
+| 홈 | 피드백 | 기록 | 프로필 |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/images/screen_home.png" width="200"> | <img src="docs/images/screen_feedback.png" width="200"> | <img src="docs/images/screen_history.png" width="200"> | <img src="docs/images/screen_profile.png" width="200"> |
+-->
 
 ## 사용하는 데이터
 
@@ -64,15 +89,40 @@
 
 가중치와 상수의 근거, 계산 예시는 `docs/3_설계`의 기본설계서·상세설계서에 정리했습니다.
 
-## 데이터 흐름
+## 데이터 흐름과 앱 구조
 
+### 데이터 흐름
+
+건강 데이터는 휴대폰 안에서만 처리하고, 사용자가 동의한 경우에만 조언 문장(점수·등급·"평소 대비" 표현)을 Gemini로 보냅니다.
+
+```mermaid
+flowchart LR
+    W[Galaxy Watch] --> SH[Samsung Health] --> HC[Health Connect]
+    subgraph PHONE["FCare 앱 (휴대폰 안)"]
+        DB[("일별 요약 · 기준선<br/>Room DB")] --> ENG["계산 엔진<br/>회복 점수"]
+        ENG --> FB["피드백<br/>점수 구성 · 조언"]
+        FB --> UI["홈 · 피드백 · 기록 화면"]
+        FB --> NT["점수 알림"]
+    end
+    HC -->|수면 · 심박 · 운동 기록| DB
+    FB -.->|동의 시: 조언 문장| GM[Google Gemini]
+    GM -.->|다듬은 문장| FB
 ```
-Galaxy Watch ─▶ Samsung Health ─▶ Health Connect ─▶ FCare 앱 (휴대폰)
-                                                     ├─ 일별 요약 · 기준선 · 회복 점수 (Room DB)
-                                                     ├─ 피드백 (점수 구성 · 조언 · 활동 추천)
-                                                     ├─ 홈 / 피드백 / 기록 화면, 점수 알림
-                                                     └─ (동의 시) 조언 문장 ─▶ Google Gemini ─▶ 다듬은 문장
+
+### 앱 구조
+
+```mermaid
+flowchart TB
+    UI["ui · 화면 (Jetpack Compose)<br/>홈 · 피드백 · 기록 · 프로필"] --> VM["ui · 상태 관리 (ViewModel)"]
+    VM --> WK["work · 점수 확정과 백그라운드 작업<br/>ScoreCoordinator · WorkManager · 알림"]
+    VM --> DATA
+    WK --> HCR["hc · Health Connect 읽기"]
+    WK --> ENG["engine · 계산 엔진 (순수 Kotlin)<br/>지표 · 기준선 · TRIMP · 회복 점수 · 피드백"]
+    WK --> DATA["data · Room 데이터베이스"]
+    WK -.-> AI["ai · Gemini 호출 (선택)"]
 ```
+
+계산 엔진(`engine`)은 Android에 의존하지 않아 PC에서 단위시험 31개로 확인합니다.
 
 ## 기술 스택
 
