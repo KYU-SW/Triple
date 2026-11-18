@@ -176,6 +176,6 @@ private fun ScoreBody(e: RecoveryScoreEntity, baselineNights: Int?, onOpenFeedba
         if (e.loadBuilding)   // [수정 2] 워치 착용 14일 미만: 운동 부하는 약하게 반영
             StatusLabel("운동 기준선 쌓는 중", MaterialTheme.colorScheme.secondary)
     }
-    // 개선사항 2: 피드백 보기 → 감점 요인·조언
-    Button(onOpenFeedback, Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("피드백 보기") }
+    // 개선사항 2: 분석 보기 → 감점 요인·조언
+    Button(onOpenFeedback, Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("분석 보기") }
 }

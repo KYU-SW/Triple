@@ -17,7 +17,7 @@ import kotlin.math.roundToInt
 /**
  * 점수 확정 알림 (개선사항 4: 점수 첨부 + 점수 기반 활동 추천).
  * 백그라운드에서 점수가 확정됐을 때만 보낸다 (앱을 보고 있을 때는 화면에 이미 나오므로 생략).
- * 알림을 누르면 피드백 탭이 열린다.
+ * 알림을 누르면 분석 탭이 열린다.
  */
 object Notifier {
     private const val CHANNEL_ID = "score"

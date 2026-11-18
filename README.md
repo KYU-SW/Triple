@@ -42,18 +42,18 @@
 | 기능 | 설명 |
 | --- | --- |
 | 회복 점수 | 어젯밤 수면 기록이 들어오면 자동으로 계산해 하루 1번 확정. 4단계 등급(피로함 / 보통 / 편안함 / 가벼움)과 안내 문구 표시. 12:00까지 수면 기록이 없으면 "데이터 부족" |
-| 피드백 | 평소(60점)보다 점수가 오르내린 이유를 항목별로 표시하고, 오늘의 조언(최대 3개)과 활동 추천 제공 |
+| 오늘의 분석 | 평소(60점)보다 점수가 오르내린 이유를 항목별로 표시하고 감점 합계를 보여 줌. 오늘의 조언(최대 3개)과 활동 추천 제공 |
 | AI 문장 다듬기 (선택) | 사용자가 동의한 경우에만 조언 문장을 Google Gemini로 자연스럽게 다듬음. 점수·등급과 "평소 대비" 조언 문장만 보내고, 실패하면 앱에 들어 있는 규칙 문장 표시 |
 | 점수 알림 | 앱이 꺼져 있을 때 점수가 확정되면 점수·조언 한 줄·오늘의 추천 활동을 알림으로 보냄 |
-| 기록 | 회복 점수·수면·최저 심박·운동 부하 그래프와 평소 범위, 그래프 자세히 보기, 주간·월간 요약, 날짜별 조회 |
-| 프로필·설정 | 프로필 수정, Health Connect 권한 재설정, 알림·AI 설정, 기록 내보내기(CSV), 데이터 초기화 |
+| 기록 | 회복 점수(등급 구간 띠)·수면·최저 심박·운동 부하 그래프와 평소 범위, 그래프 자세히 보기, 주간·월간 요약, 날짜별 조회 |
+| 프로필·설정 | 프로필 수정, Health Connect 권한 재설정, 알림·AI 설정, 기록 내보내기(CSV), 용어 설명, 데이터 초기화 |
 
 ### 화면 구성
 
-시작 → 최초 설정(프로필) → Health Connect 권한 요청 → 하단 탭 **홈 / 피드백 / 기록 / 프로필**
+시작 → 최초 설정(프로필) → Health Connect 권한 요청 → 하단 탭 **홈 / 분석 / 기록 / 프로필**
 
 <!-- 화면 캡처: docs/images/에 screen_home.png, screen_feedback.png, screen_history.png, screen_profile.png를 넣은 뒤 아래 주석을 풀면 표시됩니다.
-| 홈 | 피드백 | 기록 | 프로필 |
+| 홈 | 분석 | 기록 | 프로필 |
 | :---: | :---: | :---: | :---: |
 | <img src="docs/images/screen_home.png" width="200"> | <img src="docs/images/screen_feedback.png" width="200"> | <img src="docs/images/screen_history.png" width="200"> | <img src="docs/images/screen_profile.png" width="200"> |
 -->
@@ -100,8 +100,8 @@ flowchart LR
     W[Galaxy Watch] --> SH[Samsung Health] --> HC[Health Connect]
     subgraph PHONE["FCare 앱 (휴대폰 안)"]
         DB[("일별 요약 · 기준선<br/>Room DB")] --> ENG["계산 엔진<br/>회복 점수"]
-        ENG --> FB["피드백<br/>점수 구성 · 조언"]
-        FB --> UI["홈 · 피드백 · 기록 화면"]
+        ENG --> FB["오늘의 분석<br/>점수 구성 · 조언"]
+        FB --> UI["홈 · 분석 · 기록 화면"]
         FB --> NT["점수 알림"]
     end
     HC -->|수면 · 심박 · 운동 기록| DB
@@ -113,7 +113,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    UI["ui · 화면 (Jetpack Compose)<br/>홈 · 피드백 · 기록 · 프로필"] --> VM["ui · 상태 관리 (ViewModel)"]
+    UI["ui · 화면 (Jetpack Compose)<br/>홈 · 분석 · 기록 · 프로필"] --> VM["ui · 상태 관리 (ViewModel)"]
     VM --> WK["work · 점수 확정과 백그라운드 작업<br/>ScoreCoordinator · WorkManager · 알림"]
     VM --> DATA
     WK --> HCR["hc · Health Connect 읽기"]
@@ -158,7 +158,7 @@ flowchart TB
 | 4 | 구현 | 완료 | 앱 전체 구현 (`src/FCare`) |
 | 5 | 시험 | 진행 중 | 단위시험 계획서·결과서(31개 통과), 통합시험 계획서 / 통합시험(팀원 실기기, 2026-11-06 ~ 12-04) 진행 중, 결과서 예정 |
 
-_기준일: 2026-11-16_
+_기준일: 2026-11-19_
 
 ## 폴더 구성
 

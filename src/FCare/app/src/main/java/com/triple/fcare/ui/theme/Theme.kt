@@ -1,13 +1,15 @@
 package com.triple.fcare.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import com.triple.fcare.engine.Grade
 
+/**
+ * 밝은(화이트) 테마 — 개선사항(11-18) 4: 휴대폰이 다크 모드여도 앱은 항상 이 테마를 쓴다.
+ * 배경은 흰색, 카드·하단 탭은 아주 옅은 회색, 게이지·막대의 빈 부분은 surfaceVariant.
+ */
 private val LightColors = lightColorScheme(
     primary = Blue40,
     onPrimary = Color.White,
@@ -16,26 +18,21 @@ private val LightColors = lightColorScheme(
     secondary = Teal40,
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFCCEFEA),
-    background = Surface,
-    surface = Surface,
-    surfaceContainer = Color.White,
+    background = Color.White,
+    surface = Color.White,
+    surfaceVariant = Gray92,               // 게이지·막대 빈 부분
+    surfaceContainerLowest = Color.White,
     surfaceContainerLow = Color.White,
-    surfaceContainerHigh = Blue95,
+    surfaceContainer = Gray97,             // 카드·하단 탭
+    surfaceContainerHigh = Color.White,    // 대화상자·날짜 선택
+    surfaceContainerHighest = Gray92,
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Blue80,
-    onPrimary = Blue10,
-    primaryContainer = Blue30,
-    onPrimaryContainer = Blue90,
-    secondary = Teal80,
-)
-
-/** 브랜드 색을 항상 쓰도록 동적 색상(배경화면 색 따라가기)은 쓰지 않는다. */
+/** 브랜드 색을 항상 쓰도록 동적 색상(배경화면 색 따라가기)은 쓰지 않고, 다크 모드도 따르지 않는다. */
 @Composable
-fun FCareTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun FCareTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = LightColors,
         typography = Typography,
         content = content,
     )
