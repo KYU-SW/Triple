@@ -65,6 +65,7 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
     val granted by vm.granted.collectAsState()
     var editing by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(false) }
+    var showGlossary by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
         vm.refreshPermissions()
@@ -177,6 +178,8 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
         AppCard {
             MenuRow(Icons.Filled.Info, "워치 착용 안내") { showGuide = true }            // HOM-10
             HorizontalDivider()
+            MenuRow(Icons.Filled.Info, "용어 설명") { showGlossary = true }             // 11-18 개선 3
+            HorizontalDivider()
             MenuRow(Icons.Filled.Settings, "Health Connect 연동 확인 (시험용)", onClick = onOpenCheck)
         }
 
@@ -189,6 +192,7 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
     }
 
     if (showGuide) GuideDialog { showGuide = false }
+    if (showGlossary) GlossaryDialog { showGlossary = false }
     if (confirmAi) {
         AlertDialog(
             onDismissRequest = { confirmAi = false },

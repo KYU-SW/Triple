@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -45,6 +47,10 @@ import com.triple.fcare.data.RecoveryScoreEntity
 import com.triple.fcare.engine.CapRule
 import com.triple.fcare.engine.Grade
 import com.triple.fcare.ui.theme.color
+import com.triple.fcare.ui.theme.GradeLight
+import com.triple.fcare.ui.theme.GradeComfort
+import com.triple.fcare.ui.theme.GradeNormal
+import com.triple.fcare.ui.theme.GradeTired
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -180,7 +186,7 @@ fun StatusLabel(text: String, color: Color) {
  */
 @Composable
 fun ScoreGauge(score: Double?, grade: Grade?, size: Dp = 200.dp, centerText: String? = null) {
-    val track = MaterialTheme.colorScheme.surfaceContainerHigh
+    val track = MaterialTheme.colorScheme.surfaceVariant
     val fill = grade?.color() ?: MaterialTheme.colorScheme.primary
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize().padding(10.dp)) {
@@ -222,14 +228,64 @@ fun GuideDialog(onDismiss: () -> Unit) {
     )
 }
 
+/** 개선사항(11-18) 3: 앱에서 쓰는 용어 설명 (프로필 → 도움말 → 용어 설명) */
+val GLOSSARY: List<Pair<String, String>> = listOf(
+    "회복 점수" to "0~100점. 어젯밤 수면, 수면 중 최저 심박, 최근 운동량을 내 평소와 비교해 계산해요. 평소와 같은 날이 60점이고, 높을수록 몸이 가벼운 상태예요.",
+    "등급" to "피로함(0~25) · 보통(25~50) · 편안함(50~75) · 가벼움(75~100)",
+    "평소 (개인 기준선)" to "최근 28일 동안의 내 기록 평균이에요. 기록이 7일보다 적으면 일반 기준값과 섞어서 비교해요(기준선 쌓는 중).",
+    "총 수면 시간" to "잠든 시간에서 중간에 깬 시간을 뺀 실제 수면 시간이에요. 최근 3일 평균이 6시간보다 적으면 평소와 상관없이 추가로 감점돼요.",
+    "수면 효율" to "누워 있던 시간 중 실제로 잔 시간의 비율이에요. 워치가 수면 단계를 기록한 날만 계산해요.",
+    "수면 규칙성" to "잠든 시각과 깬 시각이 평소와 얼마나 비슷한지예요. 평소와 많이 다르면 감점돼요.",
+    "수면 중 최저 심박" to "잠자는 동안 가장 낮았던 심박이에요. 평소보다 높으면 피로나 스트레스가 덜 풀린 신호일 수 있어요.",
+    "TRIMP" to "운동 한 번의 강도와 시간을 합친 운동량 점수예요. 워치가 잰 운동 중 심박으로 계산해요.",
+    "ATL (최근 7일 부하)" to "최근 1주일 TRIMP의 평균이에요. 최근 날일수록 더 크게 반영해요.",
+    "CTL (평소 부하)" to "최근 4주 TRIMP의 평균이에요. 내 평소 운동량을 뜻해요.",
+    "운동 부하 비율" to "ATL ÷ CTL이에요. 1.0이면 평소와 같고, 1.3을 넘으면 평소보다 운동량이 많이 늘어난 상태예요.",
+    "운동 기준선 쌓는 중" to "워치를 찬 날이 14일보다 적으면 운동 부하를 약하게만 반영해요.",
+    "점수 상한 (49점)" to "수면 중 심박 급상승, 운동량 급증, 심한 수면 부족 중 하나라도 있으면 다른 항목이 좋아도 49점을 넘지 않아요.",
+    "일부 데이터로 계산" to "심박이나 운동 기록이 없어 그 항목을 빼고 계산한 날이에요.",
+    "데이터 부족" to "12:00까지 어젯밤 수면 기록이 들어오지 않아 점수를 내지 못한 날이에요.",
+    "감점 요인" to "분석 탭에서 각 항목이 평소(60점)보다 점수를 몇 점 내렸는지(−) 올렸는지(+) 보여 줘요.",
+)
+
+@Composable
+fun GlossaryDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("확인") } },
+        title = { Text("용어 설명") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                GLOSSARY.forEach { (term, desc) ->
+                    Text(term, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 10.dp))
+                    Text(desc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+    )
+}
+
 /** 그래프 기준선 (점선). 예: 최소 수면 6시간, 기간 평균 */
 data class RefLine(val value: Double, val label: String, val color: Color)
+
+/** 그래프 배경 구간 띠. 예: 회복 점수 등급 구간 0~25 피로함 (11-18 개선 7) */
+data class Zone(val from: Double, val to: Double, val label: String, val color: Color)
+
+/** 회복 점수 그래프용 등급 구간 4개 (피로함 빨강 · 보통 주황 · 편안함 초록 · 가벼움 파랑) */
+val GRADE_ZONES: List<Zone> = listOf(
+    Zone(0.0, 25.0, Grade.TIRED.label, GradeTired),
+    Zone(25.0, 50.0, Grade.NORMAL.label, GradeNormal),
+    Zone(50.0, 75.0, Grade.COMFORT.label, GradeComfort),
+    Zone(75.0, 100.0, Grade.LIGHT.label, GradeLight),
+)
 
 /**
  * 꺾은선 그래프 (HIS-01·02). 값이 없는 날은 선을 끊는다.
  * - band: 개인 기준선 범위(평균 ± 표준편차)를 옅은 띠로 표시
  * - refLines: 점선 기준선 (개선사항 3: 최소 수면 시간·평균)
  * - onSelect: 주어지면 그래프를 눌러 날짜를 고를 수 있다 (개선사항 5: 자세히 보기)
+ * - zones: 배경 구간 띠, pointColor: 값마다 점 색을 다르게 (11-18 개선 7: 등급 색)
  */
 @Composable
 fun LineChart(
@@ -241,6 +297,8 @@ fun LineChart(
     height: Dp = 120.dp,
     selected: Int? = null,
     onSelect: ((Int) -> Unit)? = null,
+    zones: List<Zone> = emptyList(),
+    pointColor: ((Double) -> Color)? = null,
 ) {
     val bandColor = color.copy(alpha = 0.12f)
     val axis = MaterialTheme.colorScheme.outlineVariant
@@ -273,6 +331,11 @@ fun LineChart(
                 val yy = size.height * k / 2
                 drawLine(axis, Offset(0f, yy), Offset(size.width, yy), strokeWidth = 1f)
             }
+            zones.forEach { z ->
+                val top = y(minOf(z.to, hi))
+                val bottom = y(maxOf(z.from, lo))
+                if (bottom > top) drawRect(z.color.copy(alpha = 0.08f), Offset(0f, top), Size(size.width, bottom - top))
+            }
             band?.let { (a, b) -> drawRect(bandColor, Offset(0f, y(b)), Size(size.width, y(a) - y(b))) }
             refLines.forEach { r ->
                 drawLine(r.color, Offset(0f, y(r.value)), Offset(size.width, y(r.value)), strokeWidth = 1.5.dp.toPx(), pathEffect = dash)
@@ -289,7 +352,17 @@ fun LineChart(
             }
             drawPath(path, color, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
             values.forEachIndexed { i, v ->
-                if (v != null) drawCircle(color, radius = (if (i == selected) 6.0 else 3.5).dp.toPx(), center = Offset(x(i), y(v)))
+                if (v != null) drawCircle(pointColor?.invoke(v) ?: color, radius = (if (i == selected) 6.0 else 4.0).dp.toPx(), center = Offset(x(i), y(v)))
+            }
+        }
+    }
+    if (zones.isNotEmpty()) {
+        Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            zones.forEach { z ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(z.color))
+                    Text(" ${z.label}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }

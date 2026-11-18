@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,9 +83,15 @@ private fun ChartKind.refLines(d: HistoryData): List<RefLine> = when (this) {
 
 @Composable
 private fun ChartKind.color() = when (this) {
-    ChartKind.SCORE, ChartKind.SLEEP -> MaterialTheme.colorScheme.primary
+    ChartKind.SCORE -> MaterialTheme.colorScheme.outline   // 점수는 선을 회색으로, 점은 등급 색 (11-18 개선 7)
+    ChartKind.SLEEP -> MaterialTheme.colorScheme.primary
     else -> MaterialTheme.colorScheme.secondary
 }
+
+/** 11-18 개선 7: 회복 점수 그래프는 등급 구간 띠 + 등급 색 점 */
+private fun ChartKind.zones(): List<Zone> = if (this == ChartKind.SCORE) GRADE_ZONES else emptyList()
+private fun ChartKind.pointColor(): ((Double) -> Color)? =
+    if (this == ChartKind.SCORE) ({ v: Double -> Grade.of(v).color() }) else null
 
 private fun ChartKind.band(d: HistoryData) = when (this) {
     ChartKind.SLEEP -> d.sleepBand
@@ -134,7 +141,7 @@ fun HistoryScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             d?.let {
                 ChartKind.entries.forEach { kind ->
                     ChartCard(kind.title, kind.summary(it), onClick = { expanded = kind }) {
-                        LineChart(kind.series(it), band = kind.band(it), color = kind.color(), refLines = kind.refLines(it),
+                        LineChart(kind.series(it), band = kind.band(it), color = kind.color(), refLines = kind.refLines(it), zones = kind.zones(), pointColor = kind.pointColor(),
                             fixedRange = if (kind == ChartKind.SCORE) 0.0 to 100.0 else null)
                     }
                 }
@@ -192,7 +199,7 @@ private fun ChartDetail(kind: ChartKind, d: HistoryData, onBack: () -> Unit) {
             Text(kind.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             kind.summary(d)?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary) }
         }
-        LineChart(values, band = kind.band(d), color = kind.color(), refLines = kind.refLines(d),
+        LineChart(values, band = kind.band(d), color = kind.color(), refLines = kind.refLines(d), zones = kind.zones(), pointColor = kind.pointColor(),
             fixedRange = if (kind == ChartKind.SCORE) 0.0 to 100.0 else null,
             height = 240.dp, selected = selected, onSelect = { selected = it })
         selected?.let { i ->

@@ -12,6 +12,9 @@ val Blue95 = Color(0xFFEDF1FF)
 val Teal40 = Color(0xFF00897B)
 val Teal80 = Color(0xFF80CBC4)
 val Surface = Color(0xFFF7F9FD)
+// 화이트 테마용 회색 (11-18 개선 4)
+val Gray97 = Color(0xFFF5F6F8)   // 카드
+val Gray92 = Color(0xFFE8EBF0)   // 게이지·막대 빈 부분
 
 // 등급 색 (피로함 · 보통 · 편안함 · 가벼움)
 val GradeTired = Color(0xFFE5534B)

@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
@@ -63,12 +63,12 @@ fun FCareApp(vm: MainViewModel = viewModel(), openFeedback: Boolean = false) {
 
 private enum class Tab(val label: String, val title: String, val icon: ImageVector) {
     HOME("홈", "FCare", Icons.Filled.Home),
-    FEEDBACK("피드백", "오늘의 피드백", Icons.Filled.Favorite),   // 개선사항 6: 피드백 전용 탭
+    FEEDBACK("분석", "오늘의 분석", Icons.Filled.Search),   // 개선사항 6: 분석(감점 요인·조언) 전용 탭 (11-18 "피드백" → "분석")
     HISTORY("기록", "기록", Icons.Filled.DateRange),
     PROFILE("프로필", "프로필 · 설정", Icons.Filled.Person),
 }
 
-/** HOM-05 하단 탭: 홈 / 피드백 / 기록 / 프로필 */
+/** HOM-05 하단 탭: 홈 / 분석 / 기록 / 프로필 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainTabs(vm: MainViewModel, profile: ProfileEntity, openFeedback: Boolean) {

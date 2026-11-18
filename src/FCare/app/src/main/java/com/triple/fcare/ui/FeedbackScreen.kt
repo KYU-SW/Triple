@@ -40,7 +40,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * 피드백 탭 (개선사항 2·6): 오늘 점수의 감점 요인과 건강 조언.
+ * 분석 탭 (개선사항 2·6, 11-18 "피드백" → "분석"): 오늘 점수의 감점 요인과 건강 조언.
  * 감점 요인은 "평소(60점)보다 몇 점 낮아졌나/높아졌나"를 지표별로 보여 준다.
  */
 @Composable
@@ -59,7 +59,7 @@ fun FeedbackScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
             f != null -> FeedbackBody(f, aiOn)
             loading -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             else -> AppCard {
-                Text("오늘 회복 점수가 확정되면 피드백이 나와요.", style = MaterialTheme.typography.bodyLarge)
+                Text("오늘 회복 점수가 확정되면 분석이 나와요.", style = MaterialTheme.typography.bodyLarge)
                 Text("어젯밤 수면 기록이 들어오면 점수와 함께 감점 요인·조언을 보여 드려요.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp))
@@ -86,8 +86,6 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
             Spacer(Modifier.width(8.dp))
             StatusLabel(i.grade.label, i.grade.color())
         }
-        Text("항목별 합계 ${points(r.breakdown.totalPoints)}점", style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
         // 상한·잘림이 있으면 합계와 점수가 다른 이유를 알려 준다
         if (i.capRules.isNotEmpty()) {
             Text("⚠ ${i.capRules.first().message} (점수 상한 ${Params.CAP_SCORE.roundToInt()}점 적용)",
@@ -106,6 +104,20 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
             if (idx > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp))
             AxisBlock(axis, r.details, maxAbs)
         }
+        // 개선사항(11-18) 5: 감점 요인 합계 = 평소(60점)와 오늘 점수의 차이 (상한·0~100 범위 조정 전)
+        HorizontalDivider(Modifier.padding(vertical = 10.dp), thickness = 1.5.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("합계", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("${points(r.breakdown.totalPoints)}점", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                color = pointColor(r.breakdown.totalPoints))
+        }
+        val adjusted = i.capRules.isNotEmpty() || r.breakdown.clipped
+        Text(
+            "평소 ${Params.SCORE_BASE.roundToInt()}점 ${points(r.breakdown.totalPoints)}점 = " +
+                "${(Params.SCORE_BASE + r.breakdown.totalPoints).roundToInt()}점" +
+                if (adjusted) " → 최종 ${i.score.roundToInt()}점 (상한·범위 적용)" else "",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         r.notes.forEach {
             Text("· $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp))
@@ -160,7 +172,7 @@ private fun AxisBlock(axis: AxisPoints, details: Map<com.triple.fcare.engine.Fac
 @Composable
 private fun PointsBar(p: Double, maxAbs: Double) {
     val frac = (abs(p) / maxAbs).toFloat().coerceIn(0f, 1f)
-    val track = MaterialTheme.colorScheme.surfaceContainerHigh
+    val track = MaterialTheme.colorScheme.surfaceVariant
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(track)) {
         Box(Modifier.weight(1f).fillMaxHeight()) {
             if (p < 0 && frac > 0f) Box(Modifier.fillMaxWidth(frac).fillMaxHeight().align(Alignment.CenterEnd).background(GradeTired))
