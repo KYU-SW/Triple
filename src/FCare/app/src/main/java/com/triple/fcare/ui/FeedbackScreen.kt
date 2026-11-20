@@ -32,9 +32,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.triple.fcare.engine.AxisPoints
 import com.triple.fcare.engine.Params
+import com.triple.fcare.ui.theme.ChartUsual
+import com.triple.fcare.ui.theme.Dim
+import com.triple.fcare.ui.theme.FcText
+import com.triple.fcare.ui.theme.FillTrack
 import com.triple.fcare.ui.theme.GradeComfort
+import com.triple.fcare.ui.theme.GradeComfortText
 import com.triple.fcare.ui.theme.GradeTired
-import com.triple.fcare.ui.theme.color
+import com.triple.fcare.ui.theme.GradeTiredText
+import com.triple.fcare.ui.theme.Radius
+import com.triple.fcare.ui.theme.Separator
+import com.triple.fcare.ui.theme.Space
+import com.triple.fcare.ui.theme.TextPrimary
+import com.triple.fcare.ui.theme.TextSecondary
+import com.triple.fcare.ui.theme.TextTertiary
 import com.triple.fcare.work.DayFeedback
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -51,23 +62,23 @@ fun FeedbackScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
     LaunchedEffect(Unit) { vm.loadFeedback() }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.s4).padding(bottom = Space.s4),
+        verticalArrangement = Arrangement.spacedBy(Space.s3),
     ) {
+        ScreenTitle("오늘의 분석")   // 상단바 대신 큰 제목 (UI 개편 11-20)
         val f = fb
         when {
             f != null -> FeedbackBody(f, aiOn)
-            loading -> Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            loading -> Box(Modifier.fillMaxWidth().padding(Space.s10), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = TextSecondary)
+            }
             else -> AppCard {
-                Text("오늘 회복 점수가 확정되면 분석이 나와요.", style = MaterialTheme.typography.bodyLarge)
+                Text("오늘 회복 점수가 확정되면 분석이 나와요.", style = FcText.base, color = TextPrimary)
                 Text("어젯밤 수면 기록이 들어오면 점수와 함께 감점 요인·조언을 보여 드려요.",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp))
+                    style = FcText.sm, color = TextSecondary, modifier = Modifier.padding(top = Space.s1))
             }
         }
-        Text("FCare는 의료기기가 아니며, 조언은 생활 습관 참고용이에요.",
-            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), textAlign = TextAlign.Center)
+        // "의료기기 아님" 문구는 프로필 맨 아래 한 곳으로 옮김 (11-20)
     }
 }
 
@@ -78,21 +89,21 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
 
     // ---- 점수 구성: 평소 60점 → 오늘 점수 ----
     AppCard {
-        Text("점수 구성", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-            Text("평소 ${Params.SCORE_BASE.roundToInt()}점  →  ", style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("${i.score.roundToInt()}점", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(8.dp))
-            StatusLabel(i.grade.label, i.grade.color())
+        CardLabel("점수 구성")
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = Space.s1)) {
+            Text("평소 ${Params.SCORE_BASE.roundToInt()}점  →  ", style = FcText.base, color = TextSecondary)
+            NumberWithUnits(listOf("${i.score.roundToInt()}" to "점"))
+            Spacer(Modifier.width(Space.s2))
+            GradeChip(i.grade)
         }
-        // 상한·잘림이 있으면 합계와 점수가 다른 이유를 알려 준다
+        // 상한·잘림이 있으면 합계와 점수가 다른 이유를 알려 준다 (짧은 줄 + 이유 줄, 각 24자 이하)
         if (i.capRules.isNotEmpty()) {
-            Text("⚠ ${i.capRules.first().message} (점수 상한 ${Params.CAP_SCORE.roundToInt()}점 적용)",
-                style = MaterialTheme.typography.bodySmall, color = GradeTired, modifier = Modifier.padding(top = 6.dp))
+            Text("⚠ 점수 상한 ${Params.CAP_SCORE.roundToInt()}점", style = FcText.sm.copy(fontWeight = FontWeight.SemiBold),
+                color = GradeTiredText, modifier = Modifier.padding(top = Space.s2))
+            Text(i.capRules.first().message, style = FcText.sm, color = TextPrimary)
         } else if (r.breakdown.clipped) {
-            Text("점수는 0~100점 범위로 맞췄어요.", style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            Text("점수는 0~100점 범위로 맞췄어요.", style = FcText.sm, color = TextSecondary,
+                modifier = Modifier.padding(top = Space.s2))
         }
     }
 
@@ -101,26 +112,26 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
     AppCard {
         val maxAbs = r.breakdown.factors.maxOfOrNull { abs(it.points) }?.coerceAtLeast(1.0) ?: 1.0
         r.breakdown.axes.forEachIndexed { idx, axis ->
-            if (idx > 0) HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            if (idx > 0) HorizontalDivider(Modifier.padding(vertical = Space.s2), thickness = Dim.hairline, color = Separator)
             AxisBlock(axis, r.details, maxAbs)
         }
         // 개선사항(11-18) 5: 감점 요인 합계 = 평소(60점)와 오늘 점수의 차이 (상한·0~100 범위 조정 전)
-        HorizontalDivider(Modifier.padding(vertical = 10.dp), thickness = 1.5.dp)
+        HorizontalDivider(Modifier.padding(vertical = Space.s3), thickness = Dim.stroke, color = Separator)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("합계", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-            Text("${points(r.breakdown.totalPoints)}점", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
-                color = pointColor(r.breakdown.totalPoints))
+            Text("합계", Modifier.weight(1f), style = FcText.sm.copy(fontWeight = FontWeight.Bold), color = TextPrimary)
+            Text("${points(r.breakdown.totalPoints)}점", style = FcText.lg, color = pointColor(r.breakdown.totalPoints))
         }
-        val adjusted = i.capRules.isNotEmpty() || r.breakdown.clipped
-        Text(
-            "평소 ${Params.SCORE_BASE.roundToInt()}점 ${points(r.breakdown.totalPoints)}점 = " +
-                "${(Params.SCORE_BASE + r.breakdown.totalPoints).roundToInt()}점" +
-                if (adjusted) " → 최종 ${i.score.roundToInt()}점 (상한·범위 적용)" else "",
-            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        // 계산 줄 (Phase 2: 24자 이하) 예: "평소 60 −3.2 = 57점", "평소 60 +8.5 → 49점 (상한)"
+        val raw = (Params.SCORE_BASE + r.breakdown.totalPoints).roundToInt()
+        val calc = "평소 ${Params.SCORE_BASE.roundToInt()} ${points(r.breakdown.totalPoints)}" + when {
+            i.capRules.isNotEmpty() -> " → ${i.score.roundToInt()}점 (상한)"
+            r.breakdown.clipped -> " → ${i.score.roundToInt()}점 (범위)"
+            else -> " = ${raw}점"
+        }
+        Text(calc, style = FcText.xs.copy(fontWeight = FontWeight.Normal), color = TextSecondary)
         r.notes.forEach {
-            Text("· $it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp))
+            Text("· $it", style = FcText.xs.copy(fontWeight = FontWeight.Normal), color = TextSecondary,
+                modifier = Modifier.padding(top = Space.s1))
         }
     }
 
@@ -128,19 +139,19 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
     SectionTitle("오늘의 조언")
     AppCard {
         if (aiOn && f.aiText != null) {
-            Text(f.aiText, style = MaterialTheme.typography.bodyLarge)
-            Text("AI(Gemini)가 다듬은 문장이에요", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            Text(f.aiText, style = FcText.base, color = TextPrimary)
+            Text("AI(Gemini)가 다듬은 문장이에요", style = FcText.xs, color = TextTertiary,
+                modifier = Modifier.padding(top = Space.s2))
         } else {
             r.advices.forEachIndexed { idx, a ->
-                if (idx > 0) Spacer(Modifier.height(10.dp))
-                Text(a.fact, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                Text(a.action, style = MaterialTheme.typography.bodyMedium)
+                if (idx > 0) Spacer(Modifier.height(Space.s3))
+                Text(a.fact, style = FcText.sm.copy(fontWeight = FontWeight.SemiBold), color = TextPrimary)
+                Text(a.action, style = FcText.sm, color = TextSecondary)
             }
-            if (aiOn) Text("AI 문장을 만들지 못해 기본 문장을 보여 드려요 (인터넷 연결 확인)", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+            if (aiOn) Text("AI 연결이 안 돼 기본 문장이에요", style = FcText.xs, color = TextTertiary,
+                modifier = Modifier.padding(top = Space.s2))
         }
-        HorizontalDivider(Modifier.padding(vertical = 10.dp))
+        HorizontalDivider(Modifier.padding(vertical = Space.s3), thickness = Dim.hairline, color = Separator)
         LabeledRow("오늘 추천 활동", r.activity)
     }
 }
@@ -149,18 +160,17 @@ private fun FeedbackBody(f: DayFeedback, aiOn: Boolean) {
 @Composable
 private fun AxisBlock(axis: AxisPoints, details: Map<com.triple.fcare.engine.Factor, String>, maxAbs: Double) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(axis.axis.label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        Text("${points(axis.points)}점", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold,
-            color = pointColor(axis.points))
+        Text(axis.axis.label, Modifier.weight(1f), style = FcText.sm.copy(fontWeight = FontWeight.Bold), color = TextPrimary)
+        Text("${points(axis.points)}점", style = FcText.sm.copy(fontWeight = FontWeight.Bold), color = pointColor(axis.points))
     }
     if (axis.parts.size == 1) {
         PointsBar(axis.points, maxAbs)
         details[axis.parts.first().factor]?.let { DetailText(it) }
     } else {
         axis.parts.forEach { part ->
-            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(part.factor.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                Text(points(part.points), style = MaterialTheme.typography.bodyMedium, color = pointColor(part.points))
+            Row(Modifier.padding(top = Space.s2), verticalAlignment = Alignment.CenterVertically) {
+                Text(part.factor.label, Modifier.weight(1f), style = FcText.sm, color = TextPrimary)
+                Text(points(part.points), style = FcText.sm, color = pointColor(part.points))
             }
             PointsBar(part.points, maxAbs)
             details[part.factor]?.let { DetailText(it) }
@@ -172,12 +182,11 @@ private fun AxisBlock(axis: AxisPoints, details: Map<com.triple.fcare.engine.Fac
 @Composable
 private fun PointsBar(p: Double, maxAbs: Double) {
     val frac = (abs(p) / maxAbs).toFloat().coerceIn(0f, 1f)
-    val track = MaterialTheme.colorScheme.surfaceVariant
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(track)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = Space.s1).height(Dim.bar).clip(Radius.bar).background(FillTrack)) {
         Box(Modifier.weight(1f).fillMaxHeight()) {
             if (p < 0 && frac > 0f) Box(Modifier.fillMaxWidth(frac).fillMaxHeight().align(Alignment.CenterEnd).background(GradeTired))
         }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outline))
+        Box(Modifier.width(Dim.hairline).fillMaxHeight().background(ChartUsual))   // 0점(평소) 기준선
         Box(Modifier.weight(1f).fillMaxHeight()) {
             if (p > 0 && frac > 0f) Box(Modifier.fillMaxWidth(frac).fillMaxHeight().background(GradeComfort))
         }
@@ -186,7 +195,7 @@ private fun PointsBar(p: Double, maxAbs: Double) {
 
 @Composable
 private fun DetailText(text: String) {
-    Text(text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(text, style = FcText.xs.copy(fontWeight = FontWeight.Normal), color = TextSecondary)
 }
 
 private fun points(p: Double): String {
@@ -198,9 +207,9 @@ private fun points(p: Double): String {
     }
 }
 
-@Composable
+/** 감점·가점 글자색 — 고정 등급색은 글자로 쓰면 대비가 부족해 진한 글자색을 쓴다(부호 −/+도 함께 표시). */
 private fun pointColor(p: Double): Color = when {
-    p <= -0.05 -> GradeTired
-    p >= 0.05 -> GradeComfort
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
+    p <= -0.05 -> GradeTiredText
+    p >= 0.05 -> GradeComfortText
+    else -> TextSecondary
 }
