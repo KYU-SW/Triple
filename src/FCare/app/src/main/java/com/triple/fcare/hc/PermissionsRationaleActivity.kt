@@ -36,7 +36,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("FCare 건강 데이터 사용 목적", style = MaterialTheme.typography.titleLarge)
                         PERMISSION_PURPOSES.forEach { (name, purpose) -> Text("• $name: $purpose") }
-                        Text("읽은 데이터는 회복 점수 계산에만 쓰고, 휴대폰 밖으로 보내지 않아요.")
+                        Text("읽은 데이터는 회복 점수 계산에만 쓰고 휴대폰 밖으로 보내지 않아요.")
                         Button(onClick = { finish() }) { Text("닫기") }
                     }
                 }
