@@ -3,6 +3,8 @@ package com.triple.fcare.ui
 import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.health.connect.client.PermissionController
+import com.triple.fcare.hc.HcPermissions
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -124,9 +126,17 @@ private fun MainTabs(vm: MainViewModel, profile: ProfileEntity, openFeedback: Bo
                 HcCheckScreen(Modifier.fillMaxSize())
             }
         } else when (tab) {
-            Tab.HOME -> HomeScreen(vm, profile, m, snackbar,
-                onOpenFeedback = { tab = Tab.FEEDBACK },
-                onOpenDay = { historyDate = it; tab = Tab.HISTORY })
+            Tab.HOME -> {
+                val steps = vm.steps.collectAsState().value
+                // 걸음 타일 "권한 필요 ›" (S6a): 걸음 수 권한만 요청하고 돌아오면 다시 불러온다 (JOURNEY F4)
+                val stepsLauncher = rememberLauncherForActivityResult(
+                    PermissionController.createRequestPermissionResultContract()) { vm.refresh() }
+                HomeScreen(vm, profile, m, snackbar,
+                    onOpenFeedback = { tab = Tab.FEEDBACK },
+                    onOpenDay = { historyDate = it; tab = Tab.HISTORY },
+                    steps = steps,
+                    onRequestSteps = { stepsLauncher.launch(setOf(HcPermissions.STEPS)) })
+            }
             Tab.FEEDBACK -> FeedbackScreen(vm, m)
             Tab.HISTORY -> HistoryScreen(vm, m, initialDate = historyDate)
             Tab.PROFILE -> ProfileScreen(vm, profile, onOpenCheck = { showCheck = true }, modifier = m)

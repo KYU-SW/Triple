@@ -149,6 +149,7 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
             listOf(
                 "수면" to HcPermissions.SLEEP, "심박수" to HcPermissions.HEART_RATE,
                 "운동" to HcPermissions.EXERCISE, "백그라운드 읽기" to HcPermissions.BACKGROUND,
+                "걸음 수 (선택)" to HcPermissions.STEPS,
             ).forEach { (name, p) ->
                 val ok = p in granted
                 Row(Modifier.fillMaxWidth().padding(vertical = Space.s2), verticalAlignment = Alignment.CenterVertically) {

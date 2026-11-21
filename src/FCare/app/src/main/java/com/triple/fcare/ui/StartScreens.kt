@@ -176,6 +176,7 @@ fun PermissionScreen(vm: MainViewModel, onDone: () -> Unit) {
     val permissionOf = mapOf(
         "수면" to HcPermissions.SLEEP, "심박수" to HcPermissions.HEART_RATE,
         "운동" to HcPermissions.EXERCISE, "백그라운드 읽기" to HcPermissions.BACKGROUND,
+        "걸음 수 (선택)" to HcPermissions.STEPS,
     )
 
     Column(

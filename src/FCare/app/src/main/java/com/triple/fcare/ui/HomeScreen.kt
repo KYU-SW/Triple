@@ -34,10 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -73,13 +70,14 @@ private val HM = DateTimeFormatter.ofPattern("HH:mm")
 
 /**
  * 걸음 수 표시 상태 (홈 B3 왼쪽 타일).
- * 걸음 수 읽기(READ_STEPS)는 별도 작업에서 연결한다 — 여기서는 받을 자리만 만든다.
- * Value = 어제 하루 합계, NoPermission = S6a, NoRecord = S6b. 점수 계산에는 쓰지 않는다.
+ * 값은 MainViewModel.steps가 새로고침할 때마다 Health Connect에서 읽어 채운다 (HOM-12, 상세 3.7).
+ * Value = 어제 하루 합계, NoPermission = S6a, NoRecord = S6b, Loading = 첫 읽기 전. 점수 계산에는 쓰지 않는다.
  */
 sealed interface StepsUi {
     data class Value(val steps: Long) : StepsUi
     data object NoPermission : StepsUi
     data object NoRecord : StepsUi
+    data object Loading : StepsUi
 }
 
 /** 시간대별 인사말 (JOURNEY.md 홈 문구 칸) */
@@ -112,12 +110,9 @@ fun HomeScreen(
     val error by vm.error.collectAsState()
     val refreshing by vm.refreshing.collectAsState()
     val granted by vm.granted.collectAsState()
-    var lastSuccess by rememberSaveable { mutableStateOf<String?>(null) }   // 마지막 갱신 시각 (X4)
+    val lastRefreshAt by vm.lastRefreshAt.collectAsState()   // 마지막 갱신 시각 (X4, 앱을 다시 켜도 남음)
 
     LaunchedEffect(Unit) { vm.refresh() }   // 앱 실행·홈 진입 시 즉시 확인 (기본설계서 3.3)
-    LaunchedEffect(refreshing) {
-        if (!refreshing && error == null && today != null) lastSuccess = LocalDateTime.now().toString()
-    }
     // X4 새로고침 실패: 블록이 아니라 스낵바 (원인 글은 화면에 보이지 않음)
     LaunchedEffect(error) {
         if (error != null) {
@@ -142,7 +137,7 @@ fun HomeScreen(
             Row(Modifier.fillMaxWidth().heightIn(min = Dim.touchMin), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     val dateLine = LocalDate.now().format(DATE_LINE)
-                    val stale = if (error != null) lastSuccess?.let { " · 마지막 갱신 " + staleLabel(it) } ?: " · 갱신 기록 없음" else ""
+                    val stale = if (error != null) (if (lastRefreshAt > 0) " · 마지막 갱신 " + staleLabel(lastRefreshAt) else " · 갱신 기록 없음") else ""
                     Text(dateLine + stale, style = FcText.xs, color = TextTertiary, maxLines = 1)
                     Text(greeting(profile.nickname, LocalTime.now()), style = FcText.lg, color = TextPrimary,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -195,8 +190,8 @@ fun HomeScreen(
 }
 
 /** "07:42", 어제 이전이면 "11/19 23:10" */
-private fun staleLabel(iso: String): String {
-    val t = runCatching { LocalDateTime.parse(iso) }.getOrNull() ?: return "-"
+private fun staleLabel(millis: Long): String {
+    val t = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(millis), java.time.ZoneId.systemDefault())
     return if (t.toLocalDate() == LocalDate.now()) t.format(HM) else t.format(MD) + " " + t.format(HM)
 }
 
@@ -297,6 +292,8 @@ private fun StepsTile(steps: StepsUi, onRequest: (() -> Unit)?, modifier: Modifi
             onClick = onRequest)
         StepsUi.NoRecord -> MetricTile("어제 걸음 수", "—", "기록 없음", modifier = modifier,
             icon = Icons.AutoMirrored.Rounded.DirectionsWalk, caption2 = "점수에 영향 없어요")
+        StepsUi.Loading -> MetricTile("어제 걸음 수", "—", "불러오는 중", modifier = modifier,
+            icon = Icons.AutoMirrored.Rounded.DirectionsWalk)
     }
 }
 
