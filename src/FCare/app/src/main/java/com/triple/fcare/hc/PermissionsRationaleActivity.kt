@@ -21,6 +21,7 @@ val PERMISSION_PURPOSES = listOf(
     "심박수" to "수면 중 최저 심박과 운동 강도(TRIMP)를 계산해요.",
     "운동" to "운동 시간과 운동 부하를 계산해요.",
     "백그라운드 읽기" to "앱을 열지 않아도 아침에 회복 점수를 미리 계산해요.",
+    "걸음 수 (선택)" to "어제 걸음 수를 보여 드려요. 점수에는 쓰지 않아요.",
 )
 
 /**
@@ -36,7 +37,7 @@ class PermissionsRationaleActivity : ComponentActivity() {
                     Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("FCare 건강 데이터 사용 목적", style = MaterialTheme.typography.titleLarge)
                         PERMISSION_PURPOSES.forEach { (name, purpose) -> Text("• $name: $purpose") }
-                        Text("읽은 데이터는 회복 점수 계산에만 쓰고, 휴대폰 밖으로 보내지 않아요.")
+                        Text("읽은 데이터는 회복 점수 계산에만 쓰고 휴대폰 밖으로 보내지 않아요.")
                         Button(onClick = { finish() }) { Text("닫기") }
                     }
                 }

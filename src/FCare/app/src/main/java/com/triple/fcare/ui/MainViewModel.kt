@@ -18,6 +18,8 @@ import com.triple.fcare.engine.FeedbackEngine
 import com.triple.fcare.engine.Grade
 import com.triple.fcare.engine.Sex
 import com.triple.fcare.hc.HcAvailability
+import com.triple.fcare.hc.HcPermissions
+import com.triple.fcare.hc.HcReader
 import com.triple.fcare.hc.HealthConnectManager
 import com.triple.fcare.work.AppSettings
 import com.triple.fcare.work.DateRules
@@ -156,6 +158,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** 어제 걸음 수 (HOM-12, 상세 3.7). 저장하지 않고 새로고침할 때마다 Health Connect에서 읽는다. */
+    private val _steps = MutableStateFlow<StepsUi>(StepsUi.Loading)
+    val steps: StateFlow<StepsUi> = _steps.asStateFlow()
+
+    /** 마지막으로 새로고침에 성공한 시각 (HOM-07, 상세 2.10 last_refresh_at). 0이면 “갱신 기록 없음” */
+    private val _lastRefreshAt = MutableStateFlow(settings.lastRefreshAt)
+    val lastRefreshAt: StateFlow<Long> = _lastRefreshAt.asStateFlow()
+
     /** 오늘 점수 확인·계산 (앱 실행, [다시 불러오기]). */
     fun refresh() {
         if (_refreshing.value) return
@@ -164,8 +174,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _error.value = null
             try {
                 _today.value = coordinator.run()
-                refreshPermissions()
-                _todayDetail.value = dayDetail(DateRules.scoreDate(ZonedDateTime.now()))
+                val granted = loadGranted()
+                _granted.value = granted
+                val scoreDate = DateRules.scoreDate(ZonedDateTime.now())
+                _todayDetail.value = dayDetail(scoreDate)
+                _steps.value = loadSteps(scoreDate.minusDays(1), granted)   // "어제" = 점수 날짜의 전날
+                val now = System.currentTimeMillis()
+                settings.lastRefreshAt = now
+                _lastRefreshAt.value = now
             } catch (e: Exception) {
                 _error.value = "불러오는 중 오류가 났어요: ${e.message}"
             } finally {
@@ -175,10 +191,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun refreshPermissions() {
-        viewModelScope.launch {
-            _granted.value = if (hc.availability() == HcAvailability.AVAILABLE)
-                runCatching { hc.grantedPermissions() }.getOrDefault(emptySet()) else emptySet()
-        }
+        viewModelScope.launch { _granted.value = loadGranted() }
+    }
+
+    private suspend fun loadGranted(): Set<String> =
+        if (hc.availability() == HcAvailability.AVAILABLE)
+            runCatching { hc.grantedPermissions() }.getOrDefault(emptySet()) else emptySet()
+
+    /**
+     * day 하루 걸음 수 (상세 3.7). 권한 없음 → NoPermission, 기록 없음 → NoRecord.
+     * 걸음 수는 점수와 관계없으므로 읽기에 실패해도 새로고침 전체를 실패로 만들지 않고 직전 값을 둔다.
+     */
+    private suspend fun loadSteps(day: LocalDate, granted: Set<String>): StepsUi {
+        if (hc.availability() != HcAvailability.AVAILABLE) return StepsUi.NoRecord
+        if (HcPermissions.STEPS !in granted) return StepsUi.NoPermission
+        return runCatching { HcReader(hc.client).readDailySteps(day) }.fold(
+            onSuccess = { n -> if (n == null) StepsUi.NoRecord else StepsUi.Value(n) },
+            onFailure = { _steps.value.takeIf { it != StepsUi.Loading } ?: StepsUi.NoRecord },
+        )
     }
 
     // ---- 프로필 (PRF, SET-01) ----

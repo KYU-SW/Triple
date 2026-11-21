@@ -55,6 +55,25 @@ import com.triple.fcare.data.ProfileEntity
 import com.triple.fcare.engine.ExerciseFreq
 import com.triple.fcare.engine.Sex
 import com.triple.fcare.hc.HcPermissions
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Watch
+import com.triple.fcare.BuildConfig
+import com.triple.fcare.ui.theme.Dim
+import com.triple.fcare.ui.theme.ErrorText
+import com.triple.fcare.ui.theme.FcText
+import com.triple.fcare.ui.theme.Separator
+import com.triple.fcare.ui.theme.Space
+import com.triple.fcare.ui.theme.SuccessText
+import com.triple.fcare.ui.theme.TabSelectedBg
+import com.triple.fcare.ui.theme.TextPrimary
+import com.triple.fcare.ui.theme.TextSecondary
+import com.triple.fcare.ui.theme.TextTertiary
 import com.triple.fcare.work.Notifier
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -93,33 +112,34 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
     }
 
     Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Space.s4).padding(bottom = Space.s4),
+        verticalArrangement = Arrangement.spacedBy(Space.s3),
     ) {
+        ScreenTitle("프로필")
         // ---- 프로필 요약 + 수정 (SET-01) ----
         AppCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(56.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
-                    Text(profile.nickname.take(1), style = MaterialTheme.typography.titleLarge, color = Color.White, fontWeight = FontWeight.Bold)
+                // 이니셜 원: 색은 데이터에만 쓰므로 중립 회색 면 + 먹색 글자
+                Box(Modifier.size(Dim.button).clip(CircleShape).background(TabSelectedBg), contentAlignment = Alignment.Center) {
+                    Text(profile.nickname.take(1), style = FcText.xl, color = TextPrimary)
                 }
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(Space.s3))
                 Column(Modifier.weight(1f)) {
-                    Text(profile.nickname, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(profile.nickname, style = FcText.lg, color = TextPrimary)
                     val sex = if (profile.sex == Sex.FEMALE.name) "여성" else "남성"
                     val freq = runCatching { ExerciseFreq.valueOf(profile.exerciseFreq).label }.getOrDefault("")
-                    Text("${profile.age}세 · $sex · $freq", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${profile.age}세 · $sex · $freq", style = FcText.sm, color = TextSecondary)
                 }
-                TextButton({ editing = !editing }) {
-                    Icon(Icons.Filled.Edit, contentDescription = null)
+                TextButton({ editing = !editing }, Modifier.heightIn(min = Dim.touchMin)) {
+                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.size(Dim.iconSm))
                     Text(if (editing) " 닫기" else " 수정")
                 }
             }
             if (editing) {
-                HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                HorizontalDivider(Modifier.padding(vertical = Space.s3), thickness = Dim.hairline, color = Separator)
                 ProfileForm(profile, "저장") { n, a, s, f -> vm.saveProfile(n, a, s, f); editing = false }
-                Text("나이·성별을 바꾸면 이후 계산하는 운동 부하부터 반영돼요.", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                Text("나이·성별을 바꾸면 이후 계산하는 운동 부하부터 반영돼요.", style = FcText.xs, color = TextSecondary,
+                    modifier = Modifier.padding(top = Space.s2))
             }
         }
 
@@ -129,17 +149,15 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
             listOf(
                 "수면" to HcPermissions.SLEEP, "심박수" to HcPermissions.HEART_RATE,
                 "운동" to HcPermissions.EXERCISE, "백그라운드 읽기" to HcPermissions.BACKGROUND,
+                "걸음 수 (선택)" to HcPermissions.STEPS,
             ).forEach { (name, p) ->
                 val ok = p in granted
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    StatusLabel(if (ok) "허용됨" else "허용 안 됨",
-                        if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                Row(Modifier.fillMaxWidth().padding(vertical = Space.s2), verticalAlignment = Alignment.CenterVertically) {
+                    Text(name, Modifier.weight(1f), style = FcText.base, color = TextPrimary)
+                    StatusLabel(if (ok) "허용됨" else "허용 안 됨", if (ok) SuccessText else ErrorText)
                 }
             }
-            Button({ launcher.launch(HcPermissions.ALL) }, Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(14.dp)) {
-                Text("권한 다시 설정")
-            }
+            PrimaryButton("권한 다시 요청") { launcher.launch(HcPermissions.ALL) }
         }
 
         // ---- 알림·AI 설정 ----
@@ -153,10 +171,11 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
                 if (on && !canNotify) notifyLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else vm.setNotifyEnabled(on)
             }
-            HorizontalDivider()
+            HorizontalDivider(thickness = Dim.hairline, color = Separator)
             SwitchRow(
                 "AI 문장 다듬기 (Gemini)",
-                if (!vm.aiAvailable) "API 키가 없어 사용할 수 없어요 (local.properties의 gemini.apiKey)"
+                // 개발 메모(문구 아님): 키는 local.properties의 gemini.apiKey
+                if (!vm.aiAvailable) "이 버전에서는 쓸 수 없어요"
                 else "조언 문장을 Gemini로 자연스럽게 다듬어요. 인터넷이 필요해요",
                 aiOn && vm.aiAvailable,
                 enabled = vm.aiAvailable,
@@ -166,29 +185,33 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
         // ---- 데이터 보관·내보내기 ----
         SectionTitle("내 기록")
         AppCard {
-            Text("기록은 이 휴대폰 안에만 저장돼요. 휴대폰의 Google 백업이 켜져 있으면 함께 백업되고, " +
+            Text("기록은 이 휴대폰 안에만 저장돼요. 휴대폰의 Google 백업이 켜져 있으면 함께 백업되고 " +
                 "잠금화면(PIN·패턴)을 설정해 두면 백업도 암호화돼요.",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            HorizontalDivider(Modifier.padding(top = 8.dp))
-            MenuRow(Icons.Filled.Share, "기록 내보내기 (CSV)") { confirmExport = true }
+                style = FcText.sm, color = TextSecondary)
+            HorizontalDivider(Modifier.padding(top = Space.s2), thickness = Dim.hairline, color = Separator)
+            MenuRow(Icons.Rounded.Share, "기록 내보내기 (CSV)") { confirmExport = true }
         }
 
         // ---- 도움말 ----
         SectionTitle("도움말")
-        AppCard {
-            MenuRow(Icons.Filled.Info, "워치 착용 안내") { showGuide = true }            // HOM-10
-            HorizontalDivider()
-            MenuRow(Icons.Filled.Info, "용어 설명") { showGlossary = true }             // 11-18 개선 3
-            HorizontalDivider()
-            MenuRow(Icons.Filled.Settings, "Health Connect 연동 확인 (시험용)", onClick = onOpenCheck)
+        AppCard(padding = Space.s4) {
+            MenuRow(Icons.Rounded.Watch, "워치 착용 안내") { showGuide = true }            // HOM-10
+            HorizontalDivider(thickness = Dim.hairline, color = Separator)
+            MenuRow(Icons.Rounded.Info, "용어 설명") { showGlossary = true }               // 11-18 개선 3
+            if (BuildConfig.DEBUG) {   // 시험용 화면은 디버그 빌드에서만 (Phase 1)
+                HorizontalDivider(thickness = Dim.hairline, color = Separator)
+                MenuRow(Icons.Rounded.Settings, "Health Connect 연동 확인 (시험용)", onClick = onOpenCheck)
+            }
         }
 
         // ---- 데이터 초기화 (SET-03) ----
         AppCard {
-            MenuRow(Icons.Filled.Delete, "저장된 데이터 초기화", tint = MaterialTheme.colorScheme.error) { confirmReset = true }
+            MenuRow(Icons.Rounded.Delete, "저장된 데이터 초기화", tint = ErrorText) { confirmReset = true }
         }
-        Text("FCare · Triple팀 · 2026 창의설계 2", style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 12.dp))
+        // 면책 문구: 홈·분석에서 옮겨 프로필 맨 아래 한 곳에 (11-20)
+        Text(DISCLAIMER, style = FcText.xs.copy(fontWeight = FontWeight.Normal), color = TextSecondary,
+            modifier = Modifier.padding(top = Space.s2))
+        Text("FCare · Triple팀 · 2026 창의설계 2", style = FcText.xs, color = TextTertiary)
     }
 
     if (showGuide) GuideDialog { showGuide = false }
@@ -233,33 +256,36 @@ fun ProfileScreen(vm: MainViewModel, profile: ProfileEntity, onOpenCheck: () -> 
             onDismissRequest = { confirmReset = false },
             title = { Text("데이터를 초기화할까요?") },
             text = { Text("프로필과 회복 점수 기록이 모두 지워지고 처음 화면으로 돌아가요. Health Connect에 있는 워치 기록은 지워지지 않아요.") },
-            confirmButton = { TextButton({ confirmReset = false; vm.resetData() }) { Text("초기화", color = MaterialTheme.colorScheme.error) } },
+            confirmButton = { TextButton({ confirmReset = false; vm.resetData() }) { Text("초기화", color = ErrorText) } },
             dismissButton = { TextButton({ confirmReset = false }) { Text("취소") } },
         )
     }
 }
 
+/** 메뉴 줄 (높이 56dp, 줄 전체가 누르는 영역) */
 @Composable
-private fun MenuRow(icon: ImageVector, text: String, tint: Color = MaterialTheme.colorScheme.onSurface, onClick: () -> Unit) {
+private fun MenuRow(icon: ImageVector, text: String, tint: Color = TextPrimary, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 12.dp),
+        Modifier.fillMaxWidth().heightIn(min = Dim.rowMenu).clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = tint)
-        Spacer(Modifier.width(12.dp))
-        Text(text, Modifier.weight(1f), color = tint)
-        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(icon, contentDescription = null, tint = if (tint == TextPrimary) TextSecondary else tint, modifier = Modifier.size(Dim.iconSm))
+        Spacer(Modifier.width(Space.s3))
+        Text(text, Modifier.weight(1f), style = FcText.base, color = tint)
+        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = TextTertiary,
+            modifier = Modifier.size(Dim.iconSm))
     }
 }
 
+/** 스위치 줄 (높이 56dp). 끈 스위치 윤곽은 테마 outline(6.02:1) — 사용자 결정 11-20: 테두리 유지 */
 @Composable
 private fun SwitchRow(title: String, caption: String, checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().heightIn(min = Dim.rowMenu).padding(vertical = Space.s2), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(caption, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = FcText.base, color = TextPrimary)
+            Text(caption, style = FcText.xs.copy(fontWeight = FontWeight.Normal), color = TextSecondary)
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(Space.s3))
         Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
     }
 }

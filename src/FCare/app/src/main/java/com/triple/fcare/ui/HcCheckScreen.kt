@@ -82,6 +82,7 @@ fun HcCheckScreen(modifier: Modifier = Modifier) {
         Text("허용된 권한: " + listOf(
             "수면" to HcPermissions.SLEEP, "심박" to HcPermissions.HEART_RATE,
             "운동" to HcPermissions.EXERCISE, "백그라운드" to HcPermissions.BACKGROUND,
+            "걸음" to HcPermissions.STEPS,
         ).joinToString { (n, p) -> "$n ${if (p in granted) "O" else "X"}" })
         HorizontalDivider()
         Text(log, style = MaterialTheme.typography.bodySmall)

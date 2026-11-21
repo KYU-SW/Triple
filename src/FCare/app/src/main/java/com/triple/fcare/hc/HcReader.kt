@@ -5,6 +5,8 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import com.triple.fcare.engine.HrSample
@@ -97,6 +99,21 @@ class HcReader(
                 pageSize = 1,
             )
         ).records.isNotEmpty()
+    }
+
+    /**
+     * 날짜 day(00:00~24:00, 기기 시간대)의 걸음 수 하루 합계 (상세 3.1, HOM-12). 기록이 없으면 null.
+     * readRecords로 직접 더하지 않고 aggregate(COUNT_TOTAL)를 쓴다 — 워치와 휴대폰이 같은 걸음을
+     * 둘 다 기록해도 Health Connect가 출처 우선순위로 중복을 정리한 합계를 준다.
+     * 회복 점수 계산에는 쓰지 않고 저장하지도 않는다 (홈 표시 전용).
+     */
+    suspend fun readDailySteps(day: LocalDate): Long? {
+        val start = day.atStartOfDay(zone).toInstant()
+        val end = day.plusDays(1).atStartOfDay(zone).toInstant()
+        val result = client.aggregate(
+            AggregateRequest(metrics = setOf(StepsRecord.COUNT_TOTAL), timeRangeFilter = TimeRangeFilter.between(start, end))
+        )
+        return result[StepsRecord.COUNT_TOTAL]
     }
 
     /** 날짜 day(00:00~24:00)에 시작한 운동 기록 (상세 3.1). */

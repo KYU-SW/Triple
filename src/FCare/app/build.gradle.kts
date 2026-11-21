@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)  // 하단 탭 아이콘
+    implementation(libs.androidx.compose.material.icons.extended)  // 둥근 아이콘(걸음·수면·부하·기록), UI 개편 11-20
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)

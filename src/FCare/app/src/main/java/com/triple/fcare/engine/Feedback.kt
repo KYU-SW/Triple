@@ -158,58 +158,62 @@ object FeedbackEngine {
         val tstShort = if (i.tstMin != null && i.tstMean != null) i.tstMean - i.tstMin else null
         val hrUp = if (i.minHr != null && i.hrMean != null) i.minHr - i.hrMean else null
 
+        // 문구: JOURNEY.md 분석 "오늘의 조언" 표 (UI 개편 11-20). 사실 줄은 한 줄(24자 안), 숫자 설명은 권장 줄로.
         // 우선순위 1: 상한 규칙 (점수를 49점으로 제한한 이유)
         if (CapRule.C2 in caps && i.acwr != null) list += Advice(1, p(Factor.LOAD), Factor.LOAD,
-            "최근 7일 운동량이 평소의 ${ratio(i.acwr)}배로 많이 늘었어요.",
-            "오늘은 쉬거나 가벼운 스트레칭 정도만 해 보세요.")
+            "운동 부하가 평소의 ${ratio(i.acwr)}배로 늘었어요.",
+            "쉬거나 가벼운 스트레칭 정도만 해 보세요.")
         if (CapRule.C1 in caps) list += Advice(1, p(Factor.HR), Factor.HR,
-            "수면 중 최저 심박이 평소보다 ${hrUp?.let { "${abs(it).roundToInt()} bpm" } ?: "많이"} 높았어요.",
-            "피로·음주·늦은 카페인이 영향을 줄 수 있으니 오늘은 무리하지 마세요.")
+            "최저 심박이 평소보다 ${hrUp?.let { "${abs(it).roundToInt()} bpm" } ?: "많이"} 높았어요.",
+            "피로·음주·늦은 카페인이 영향을 줄 수 있으니 무리하지 마세요.")
         if (CapRule.C3 in caps) list += Advice(1, p(Factor.TST), Factor.TST,
-            "어젯밤 수면이 평소보다 크게 부족했어요.",
+            "어젯밤 수면이 크게 부족했어요.",
             "강한 운동은 피하고 오늘 밤은 일찍 잠자리에 들어 보세요.")
 
         // 우선순위 2: 평소보다 눈에 띄게 나쁜 지표 (상한으로 이미 말한 지표는 제외)
         if (CapRule.C2 !in caps && i.acwr != null && i.acwr > Params.ACWR_NORMAL_HIGH) list += Advice(2, p(Factor.LOAD), Factor.LOAD,
-            "최근 7일 운동량이 평소의 ${ratio(i.acwr)}배예요.",
-            "오늘은 강도를 낮추거나 가벼운 걷기·스트레칭을 추천해요.")
+            "운동 부하가 평소의 ${ratio(i.acwr)}배예요.",
+            "강도를 낮추거나 가벼운 걷기·스트레칭을 추천해요.")
         if (CapRule.C3 !in caps && i.sTst <= BAD) {
-            val fact = if (i.tstAvg3 != null && i.tstAvg3 < Params.MIN_SLEEP_MIN)
-                "최근 3일 평균 수면이 기준(${hm(Params.MIN_SLEEP_MIN)})보다 ${hm(Params.MIN_SLEEP_MIN - i.tstAvg3)} 부족해요."
-            else if (tstShort != null && tstShort > 0) "어젯밤 수면이 평소보다 ${hm(tstShort)} 짧았어요."
-            else "어젯밤 수면이 평소보다 짧았어요."
-            list += Advice(2, p(Factor.TST), Factor.TST, fact, "오늘은 평소보다 30분 일찍 잠자리에 들어 보세요.")
+            val avgShort = i.tstAvg3 != null && i.tstAvg3 < Params.MIN_SLEEP_MIN
+            val fact = if (avgShort) "3일 평균 수면이 ${hm(Params.MIN_SLEEP_MIN)} 미만이에요." else "어젯밤 수면이 평소보다 짧았어요."
+            val detail = when {
+                avgShort -> "평균이 기준보다 ${hm(Params.MIN_SLEEP_MIN - i.tstAvg3!!)} 부족해요. "
+                tstShort != null && tstShort > 0 -> "어젯밤이 평소보다 ${hm(tstShort)} 짧았어요. "
+                else -> ""
+            }
+            list += Advice(2, p(Factor.TST), Factor.TST, fact, detail + "평소보다 30분 일찍 잠자리에 들어 보세요.")
         }
         if (CapRule.C1 !in caps && i.sHr != null && i.sHr <= BAD) list += Advice(2, p(Factor.HR), Factor.HR,
-            "수면 중 최저 심박이 평소보다 ${hrUp?.let { "${abs(it).roundToInt()} bpm" } ?: "조금"} 높았어요.",
+            "최저 심박이 평소보다 ${hrUp?.let { "${abs(it).roundToInt()} bpm" } ?: "조금"} 높았어요.",
             "물을 충분히 마시고 늦은 카페인·음주는 피해 보세요.")
         if (i.sReg != null && i.sReg <= BAD) {
             val d = if (i.onsetMin != null && i.onsetMedian != null) i.onsetMin - i.onsetMedian else null
             val fact = if (d != null && abs(d) >= 15) "평소보다 ${hm(abs(d))} ${if (d > 0) "늦게" else "일찍"} 잠들었어요."
-            else "잠들고 일어난 시각이 평소와 달랐어요."
+            else "잠든 시각이 평소와 달랐어요."
             list += Advice(2, p(Factor.REG), Factor.REG, fact, "자고 일어나는 시각을 일정하게 맞추면 회복에 도움이 돼요.")
         }
         if (i.sSe != null && i.sSe <= BAD) {
             val drop = if (i.efficiency != null && i.seMean != null) ((i.seMean - i.efficiency) * 100).roundToInt() else null
             list += Advice(2, p(Factor.SE), Factor.SE,
-                "누워 있던 시간에 비해 실제로 잔 시간이 평소보다 적었어요" + (drop?.takeIf { it > 0 }?.let { "(효율 ${it}%p 낮음)." } ?: "."),
-                "자기 전 휴대폰 사용과 늦은 카페인을 줄여 보세요.")
+                "수면 효율이 평소보다 낮았어요.",
+                (drop?.takeIf { it > 0 }?.let { "효율이 평소보다 ${it}%p 낮았어요. " } ?: "") + "자기 전 휴대폰 사용과 늦은 카페인을 줄여 보세요.")
         }
 
         // 우선순위 3: 좋은 날 안내
         if (i.acwr != null && i.acwr < Params.ACWR_REST && !i.loadBuilding) list += Advice(3, p(Factor.LOAD), Factor.LOAD,
-            "최근 운동량이 평소보다 적어요.",
+            "운동 부하가 평소보다 낮아요.",
             "컨디션이 괜찮다면 계획한 운동을 해도 좋아요.")
         if (list.none { it.priority <= 2 }) list += if (i.score >= Params.SCORE_BASE)
-            Advice(3, 0.0, null, "수면·심박·운동량이 모두 평소 수준이거나 더 좋아요.", "지금 생활 리듬을 유지해 보세요.")
+            Advice(3, 0.0, null, "수면·심박·운동이 모두 평소 이상이에요.", "지금 생활 리듬을 유지해 보세요.")
         else
-            Advice(3, 0.0, null, "눈에 띄게 나쁜 항목은 없지만 평소보다 조금 덜 회복했어요.", "오늘은 무리하지 말고 가볍게 움직여 보세요.")
+            Advice(3, 0.0, null, "나쁜 항목은 없지만 조금 덜 회복했어요.", "가볍게 움직이며 컨디션을 살펴보세요.")
 
         return list.sortedWith(compareBy<Advice> { it.priority }.thenBy { it.impact }).take(MAX_ADVICES)
     }
 
     private fun notes(i: FeedbackInput): List<String> = buildList {
-        if (i.sHr == null) add("심박 데이터가 없어(또는 기준선 3일 미만) 수면과 운동량만으로 판단했어요.")
+        if (i.sHr == null) add("심박 데이터가 없어(또는 기준선 3일 미만) 수면과 운동 부하만으로 판단했어요.")
         if (i.sLoad == null) add("운동 부하는 심박·운동 권한이 있어야 계산돼요.")
         if (i.baselineNights != null && i.baselineNights < Params.BUILDING_DAYS)
             add("아직 기록이 ${i.baselineNights}일이라 수면은 일반 기준으로 비교했어요.")

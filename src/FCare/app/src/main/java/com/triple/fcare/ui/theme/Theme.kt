@@ -7,28 +7,41 @@ import androidx.compose.ui.graphics.Color
 import com.triple.fcare.engine.Grade
 
 /**
- * 밝은(화이트) 테마 — 개선사항(11-18) 4: 휴대폰이 다크 모드여도 앱은 항상 이 테마를 쓴다.
- * 배경은 흰색, 카드·하단 탭은 아주 옅은 회색, 게이지·막대의 빈 부분은 surfaceVariant.
+ * 밝은 테마 하나만 쓴다(11-18 결정: 다크 모드·동적 색상 무시).
+ * Material 색 이름을 DESIGN.md 토큰에 연결해, Material 부품(대화상자·버튼·스위치 등)도
+ * 같은 톤을 쓰게 한다. surfaceTint를 투명으로 두어 Material 3의 보라빛 겹침을 끈다.
  */
 private val LightColors = lightColorScheme(
-    primary = Blue40,
-    onPrimary = Color.White,
-    primaryContainer = Blue90,
-    onPrimaryContainer = Blue10,
-    secondary = Teal40,
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCCEFEA),
-    background = Color.White,
-    surface = Color.White,
-    surfaceVariant = Gray92,               // 게이지·막대 빈 부분
-    surfaceContainerLowest = Color.White,
-    surfaceContainerLow = Color.White,
-    surfaceContainer = Gray97,             // 카드·하단 탭
-    surfaceContainerHigh = Color.White,    // 대화상자·날짜 선택
-    surfaceContainerHighest = Gray92,
+    primary = AccentSolid,
+    onPrimary = AccentOnSolid,
+    primaryContainer = AccentSubtle,
+    onPrimaryContainer = TextPrimary,
+    secondary = TextSecondary,              // 옛 청록 대신 중립 회색 — 색은 데이터에만
+    onSecondary = SurfaceWhite,
+    secondaryContainer = TabSelectedBg,
+    onSecondaryContainer = TextPrimary,
+    tertiary = ChartHr,
+    background = Background,
+    onBackground = TextPrimary,
+    surface = SurfaceWhite,
+    onSurface = TextPrimary,
+    surfaceVariant = FillTrack,             // 막대 빈 부분
+    onSurfaceVariant = TextSecondary,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = SurfaceWhite,
+    surfaceContainerLow = SurfaceWhite,
+    surfaceContainer = SurfaceWhite,        // 카드 = 흰색 (바탕이 연회색이라 그림자 없이 구분됨)
+    surfaceContainerHigh = SurfaceWhite,    // 대화상자·날짜 선택
+    surfaceContainerHighest = FillTrack,
+    outline = TextTertiary,                 // 입력 칸·꺼진 스위치 윤곽 (사용자 결정 11-20: 테두리 유지)
+    outlineVariant = Separator,             // 구분선
+    error = ErrorText,
+    onError = SurfaceWhite,
+    errorContainer = ErrorSubtle,
+    onErrorContainer = ErrorText,
+    scrim = TextPrimary,
 )
 
-/** 브랜드 색을 항상 쓰도록 동적 색상(배경화면 색 따라가기)은 쓰지 않고, 다크 모드도 따르지 않는다. */
 @Composable
 fun FCareTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -38,10 +51,26 @@ fun FCareTheme(content: @Composable () -> Unit) {
     )
 }
 
-/** 등급별 표시 색 */
+/** 등급 고정색 — 점·막대에만 쓴다(보통·편안함은 글자로 쓰면 대비 미달). */
 fun Grade.color(): Color = when (this) {
     Grade.TIRED -> GradeTired
     Grade.NORMAL -> GradeNormal
     Grade.COMFORT -> GradeComfort
     Grade.LIGHT -> GradeLight
+}
+
+/** 등급 글자색 (AA 통과) */
+fun Grade.textColor(): Color = when (this) {
+    Grade.TIRED -> GradeTiredText
+    Grade.NORMAL -> GradeNormalText
+    Grade.COMFORT -> GradeComfortText
+    Grade.LIGHT -> GradeLightText
+}
+
+/** 등급 칩 바탕 */
+fun Grade.subtleColor(): Color = when (this) {
+    Grade.TIRED -> GradeTiredSubtle
+    Grade.NORMAL -> GradeNormalSubtle
+    Grade.COMFORT -> GradeComfortSubtle
+    Grade.LIGHT -> GradeLightSubtle
 }
