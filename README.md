@@ -183,7 +183,7 @@ flowchart TB
 | 저장 | Room 2.7 (기기 안 저장, Android 자동 백업·CSV 내보내기) |
 | 백그라운드 | WorkManager 2.10 (04:00~12:00 1시간 간격 확인, 12:00 마감) |
 | AI (선택) | Google Gemini API (`gemini-2.5-flash`, 추가 라이브러리 없이 HTTPS 호출) |
-| 시험 | JUnit 단위시험 31개 (계산 엔진 U-01~16, 피드백 U-17~22, 원자료 처리 U-23~31), JaCoCo 커버리지, GitHub Actions 자동 실행 |
+| 시험 | JUnit 단위시험 31개 (계산 엔진 U-01 ~ 16, 피드백 U-17 ~ 22, 원자료 처리 U-23 ~ 31), JaCoCo 커버리지, GitHub Actions 자동 실행 |
 | 협업 도구 | Microsoft Teams, Microsoft Project, GitHub |
 
 ## 시험과 검증
