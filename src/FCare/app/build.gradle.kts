@@ -39,6 +39,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 단위시험 커버리지(JaCoCo)는 GitHub Actions에서 -Pcoverage를 줄 때만 켠다.
+            // 평소 Android Studio 빌드·오프라인 빌드에는 영향이 없다.
+            enableUnitTestCoverage = project.hasProperty("coverage")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

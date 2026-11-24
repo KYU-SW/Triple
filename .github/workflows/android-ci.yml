@@ -1,0 +1,89 @@
+# FCare 앱 자동 시험: PR과 main 반영 때마다 단위시험·커버리지·APK 빌드를 GitHub 서버에서 실행한다.
+# 결과는 실행 화면의 Summary에 표로 남고, 시험·커버리지 보고서는 아티팩트로 내려받을 수 있다.
+# main에 반영되면 README 배지용 값(badges 브랜치의 JSON)을 갱신한다.
+name: Android CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/FCare/**'
+      - '.github/workflows/android-ci.yml'
+      - '.github/scripts/**'
+  pull_request:
+    paths:
+      - 'src/FCare/**'
+      - '.github/workflows/android-ci.yml'
+      - '.github/scripts/**'
+
+permissions:
+  contents: write   # badges 브랜치 갱신용 (main push 때만 사용)
+
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_PATH: src/FCare
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: JDK 21 준비
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 준비
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 단위시험 + 커버리지 (U-01 ~ U-31)
+        working-directory: ${{ env.APP_PATH }}
+        run: bash ./gradlew :app:testDebugUnitTest :app:createDebugUnitTestCoverageReport -Pcoverage --stacktrace
+
+      - name: 시험 결과 요약
+        if: always()
+        run: python3 .github/scripts/test_summary.py "$APP_PATH/app/build" --summary "$GITHUB_STEP_SUMMARY" --badges badges-out
+
+      - name: 디버그 APK 빌드
+        working-directory: ${{ env.APP_PATH }}
+        run: bash ./gradlew :app:assembleDebug
+
+      - name: 시험·커버리지 보고서 올리기
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            ${{ env.APP_PATH }}/app/build/test-results/
+            ${{ env.APP_PATH }}/app/build/reports/tests/
+            ${{ env.APP_PATH }}/app/build/reports/coverage/
+
+      - name: README 배지 값 갱신
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          DIR="$RUNNER_TEMP/badges"
+          if git ls-remote --exit-code --heads "$URL" badges >/dev/null 2>&1; then
+            git clone --depth 1 --branch badges "$URL" "$DIR"
+          else
+            mkdir -p "$DIR" && git -C "$DIR" init -b badges && git -C "$DIR" remote add origin "$URL"
+          fi
+          cp badges-out/*.json "$DIR/"
+          git -C "$DIR" add -A
+          if ! git -C "$DIR" diff --cached --quiet; then
+            git -C "$DIR" commit -m "배지 갱신 (${GITHUB_SHA::7})"
+            git -C "$DIR" push origin badges
+          fi
