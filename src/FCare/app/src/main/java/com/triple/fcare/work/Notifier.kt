@@ -55,7 +55,7 @@ object Notifier {
         )
         val body = "$line\n오늘 추천: $activity"
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_stat_fcare)   // 하트 로고 흰 실루엣 (11-22)
             .setContentTitle("오늘의 회복 점수 ${score.roundToInt()}점 · $gradeLabel")
             .setContentText("오늘 추천: $activity")
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
