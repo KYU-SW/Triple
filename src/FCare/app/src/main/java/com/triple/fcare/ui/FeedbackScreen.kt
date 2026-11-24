@@ -46,7 +46,9 @@ import com.triple.fcare.ui.theme.Space
 import com.triple.fcare.ui.theme.TextPrimary
 import com.triple.fcare.ui.theme.TextSecondary
 import com.triple.fcare.ui.theme.TextTertiary
+import com.triple.fcare.work.DateRules
 import com.triple.fcare.work.DayFeedback
+import java.time.ZonedDateTime
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -68,7 +70,15 @@ fun FeedbackScreen(vm: MainViewModel, modifier: Modifier = Modifier) {
         ScreenTitle("오늘의 분석")   // 상단바 대신 큰 제목 (UI 개편 11-20)
         val f = fb
         when {
-            f != null -> FeedbackBody(f, aiOn)
+            f != null -> {
+                // 오늘이 데이터 부족이면 가장 최근 점수 날의 분석을 보여 준다 (HOM-07, 상세 3.7)
+                val d = DateRules.scoreDate(ZonedDateTime.now())
+                if (f.date != d) AppCard {
+                    Text("오늘은 수면 기록이 없어 ${untilLabel(f.date, d, withDate = true)}까지의 분석을 보여 드려요.",
+                        style = FcText.sm, color = TextSecondary)
+                }
+                FeedbackBody(f, aiOn)
+            }
             loading -> Box(Modifier.fillMaxWidth().padding(Space.s10), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = TextSecondary)
             }

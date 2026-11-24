@@ -119,12 +119,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _feedbackLoading = MutableStateFlow(false)
     val feedbackLoading: StateFlow<Boolean> = _feedbackLoading.asStateFlow()
 
-    /** 오늘(점수 날짜) 피드백. Gemini 동의 시 저장된 문장이 없으면 한 번 만들어 본다. */
+    /**
+     * 오늘(점수 날짜) 피드백. Gemini 동의 시 저장된 문장이 없으면 한 번 만들어 본다.
+     * 오늘이 "데이터 부족"으로 확정됐으면 홈과 같은 가장 최근 점수 날의 피드백을 보여 준다 (HOM-07, 상세 3.7).
+     * 지난 날의 피드백은 저장된 AI 문장만 쓰고 새로 만들지 않는다.
+     */
     fun loadFeedback() {
         viewModelScope.launch {
             _feedbackLoading.value = true
             try {
-                _feedback.value = feedbackService.feedback(DateRules.scoreDate(ZonedDateTime.now()), tryAi = true)
+                val d = DateRules.scoreDate(ZonedDateTime.now())
+                val todayRow = dao.score(DateRules.key(d))
+                val target = if (todayRow != null && todayRow.score == null)
+                    dao.previousScored(todayRow.date)?.let { LocalDate.parse(it.date) } else d
+                _feedback.value = target?.let { feedbackService.feedback(it, tryAi = it == d) }
             } catch (e: Exception) {
                 _feedback.value = null
             } finally {
@@ -145,6 +153,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _today = MutableStateFlow<TodayState?>(null)
     val today: StateFlow<TodayState?> = _today.asStateFlow()
+
+    /** 오늘이 "데이터 부족"으로 확정된 날 홈에 대신 보여 줄 가장 최근 점수 (HOM-07, 상세 3.7). 그 밖에는 null */
+    private val _fallback = MutableStateFlow<RecoveryScoreEntity?>(null)
+    val fallback: StateFlow<RecoveryScoreEntity?> = _fallback.asStateFlow()
 
     private val _todayDetail = MutableStateFlow<DayDetail?>(null)
     val todayDetail: StateFlow<DayDetail?> = _todayDetail.asStateFlow()
@@ -173,7 +185,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _refreshing.value = true
             _error.value = null
             try {
-                _today.value = coordinator.run()
+                val state = coordinator.run()
+                _fallback.value = (state as? TodayState.Done)?.score?.takeIf { it.score == null }
+                    ?.let { dao.previousScored(it.date) }
+                _today.value = state
                 val granted = loadGranted()
                 _granted.value = granted
                 val scoreDate = DateRules.scoreDate(ZonedDateTime.now())

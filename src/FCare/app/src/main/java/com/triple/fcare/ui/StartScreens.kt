@@ -77,11 +77,11 @@ fun SplashScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(Modifier.size(132.dp).clip(CircleShape).background(SurfaceWhite), contentAlignment = Alignment.Center) {
-            Image(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null, Modifier.size(132.dp))
+            Image(painterResource(R.drawable.fcare_logo), contentDescription = "FCare 로고", Modifier.size(96.dp))
         }
         Spacer(Modifier.height(Space.s6))
         Text("FCare", style = FcText.x3l, color = TextPrimary)
-        Text("퍼케어 · 오늘의 회복을 알려 드려요", style = FcText.base, color = TextSecondary)
+        Text("오늘의 회복을 알려 드릴게요", style = FcText.base, color = TextSecondary)
     }
 }
 

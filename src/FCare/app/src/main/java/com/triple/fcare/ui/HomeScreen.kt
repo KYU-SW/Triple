@@ -195,18 +195,32 @@ private fun staleLabel(millis: Long): String {
     return if (t.toLocalDate() == LocalDate.now()) t.format(HM) else t.format(MD) + " " + t.format(HM)
 }
 
+/**
+ * 데이터 부족 날에 대신 보여 주는 점수·분석의 날짜 표시 (HOM-07, 상세 3.7).
+ * 점수 날짜의 전날이면 "어제"(withDate면 "어제(11/23)"), 아니면 "11/21".
+ */
+internal fun untilLabel(shown: LocalDate, scoreDate: LocalDate, withDate: Boolean = false): String =
+    if (shown == scoreDate.minusDays(1)) (if (withDate) "어제(${shown.format(MD)})" else "어제") else shown.format(MD)
+
 /** B2 회복 점수 카드: 라벨 줄(+분석 보기) → 큰 숫자 + 등급 칩 → 막대 → 한 줄 안내 → 상태 칩 */
 @Composable
 private fun ScoreCard(vm: MainViewModel, today: TodayState?, detail: DayDetail?, onOpenFeedback: () -> Unit) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { vm.refresh() }
     val baseDate = detail?.date
-    val label = if (baseDate != null && baseDate != LocalDate.now()) "어제(기준일 ${baseDate.format(MD)})의 회복 점수" else "오늘의 회복 점수"
+    // 오늘이 "데이터 부족"이면 가장 최근 점수를 대신 보여 준다 (HOM-07, 상세 3.7)
+    val fallback by vm.fallback.collectAsState()
+    val shown = if (today is TodayState.Done && today.score.score == null) fallback else null
+    val label = when {
+        shown != null -> "최근 회복 점수"
+        baseDate != null && baseDate != LocalDate.now() -> "어제(기준일 ${baseDate.format(MD)})의 회복 점수"
+        else -> "오늘의 회복 점수"
+    }
 
     AppCard(padding = Space.s3, modifier = Modifier.heightIn(min = Dim.scoreCard)) {
         Row(Modifier.fillMaxWidth().heightIn(min = Dim.touchMin), verticalAlignment = Alignment.CenterVertically) {
             CardLabel(label, modifier = Modifier.weight(1f))
-            if (today is TodayState.Done && today.score.score != null) {
+            if ((today is TodayState.Done && today.score.score != null) || shown != null) {
                 Text("분석 보기", style = FcText.sm.copy(fontWeight = FontWeight.SemiBold), color = AccentText,
                     modifier = Modifier.heightIn(min = Dim.touchMin).clickable(onClick = onOpenFeedback)
                         .padding(horizontal = Space.s1).padding(top = 14.dp))
@@ -217,7 +231,13 @@ private fun ScoreCard(vm: MainViewModel, today: TodayState?, detail: DayDetail?,
             null, TodayState.Skipped, TodayState.NoProfile -> Box(Modifier.fillMaxWidth().height(96.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(Modifier.size(Dim.icon), strokeWidth = Dim.strokeBold, color = TextSecondary)
             }
-            is TodayState.Done -> ScoreBody(today.score, detail?.baseline?.nNights)
+            is TodayState.Done -> if (shown != null) {   // S3 데이터 부족 → 가장 최근 점수 + "어제까지의 점수예요"
+                ScoreBody(shown, null)
+                Spacer(Modifier.height(Space.s2))
+                Text("${untilLabel(LocalDate.parse(shown.date), baseDate ?: LocalDate.now())}까지의 점수예요.",
+                    style = FcText.sm.copy(fontWeight = FontWeight.SemiBold), color = TextSecondary)
+                Text("오늘은 수면 기록이 12:00까지 오지 않았어요.", style = FcText.sm, color = TextTertiary)
+            } else ScoreBody(today.score, detail?.baseline?.nNights)
             is TodayState.Waiting -> {   // S2 대기
                 Text("기다리는 중", style = FcText.x2l, color = TextPrimary)
                 Spacer(Modifier.height(Space.s1))
