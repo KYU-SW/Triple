@@ -4,7 +4,7 @@
 
 2026 창의설계 2 · **Triple** 팀
 
-![Android](https://img.shields.io/badge/Android-16%2B-3DDC84?logo=android&logoColor=white)
+![Android](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?logo=kotlin&logoColor=white)
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
 ![Health Connect](https://img.shields.io/badge/Health%20Connect-1.1.0--alpha10-34A853)
