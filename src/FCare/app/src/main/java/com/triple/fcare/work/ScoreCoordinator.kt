@@ -17,6 +17,7 @@ import com.triple.fcare.engine.ExerciseFreq
 import com.triple.fcare.engine.HeartRateMetrics
 import com.triple.fcare.engine.LoadModel
 import com.triple.fcare.engine.LoadState
+import com.triple.fcare.engine.ManualSleep
 import com.triple.fcare.engine.Params
 import com.triple.fcare.engine.RecoveryScorer
 import com.triple.fcare.engine.ScoreInput
@@ -34,6 +35,7 @@ import com.triple.fcare.hc.HealthConnectManager
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -59,6 +61,13 @@ sealed interface TodayState {
     data object HcUnavailable : TodayState                                  // Health Connect 미설치
     data object NoProfile : TodayState
     data object Skipped : TodayState                                        // 백그라운드에서 읽기 불가
+}
+
+/** 수면 직접 수정 결과 (HOM-15, 상세 3.8) */
+sealed interface ManualSleepResult {
+    data class Saved(val score: RecoveryScoreEntity) : ManualSleepResult
+    data object Invalid : ManualSleepResult       // 깬 시각이 앞이거나 1시간 미만·16시간 초과
+    data object Unavailable : ManualSleepResult   // 프로필 없음 또는 Health Connect 사용 불가
 }
 
 /**
@@ -118,27 +127,59 @@ class ScoreCoordinator(private val context: Context) {
                 dao.upsertScore(noData)
                 return TodayState.Done(noData, isNew = true)
             }
-            val summary = saveSleep(reader, d, session, hasHr)
-            val minHr = dao.hr(DateRules.key(d))?.minHr
-
-            // [수정 3] 최근 3일(어젯밤 포함) 총 수면 시간 평균
-            val tstAvg3 = dao.sleepRange(
-                DateRules.key(d.minusDays(Params.MIN_SLEEP_DAYS - 1L)), DateRules.key(d),
-            ).map { it.tstMin }.average()
-            // [수정 2] 워치를 착용한 날이 14일 미만이면 운동 기준선을 쌓는 중
-            val loadBuilding = acwr != null &&
-                dao.wornLoadDays(DateRules.key(d.minusDays(1))) < Params.LOAD_BUILDING_DAYS
-
-            // 4) 기준선 (전날까지 28일) → 점수
-            val baseline = BaselineCalculator.compute(history(d))
-            dao.upsertBaseline(baseline.toEntity(d))
-            val result = RecoveryScorer.score(
-                ScoreInput(summary, minHr, acwr, tstAvg3 = tstAvg3, loadBuilding = loadBuilding), baseline,
-            )
-            val entity = result.toEntity(d)
-            dao.upsertScore(entity)
-            TodayState.Done(entity, isNew = true)
+            TodayState.Done(scoreWithSession(reader, d, session, hasHr, acwr), isNew = true)
         }
+    }
+
+    /**
+     * 수면 직접 수정 (HOM-15, 상세 3.8): 잠든·깬 시각으로 점수 날짜 d의 수면을 바꾸고 그날 점수를 다시 계산해 덮어쓴다.
+     * 이미 확정된 날과 데이터 부족 날 모두 같다. 그날 AI 조언 문장은 지우고 동의한 경우 다시 만든다(알림은 보내지 않음).
+     */
+    suspend fun applyManualSleep(d: LocalDate, onset: LocalTime, wake: LocalTime): ManualSleepResult {
+        val result = lock.withLock {
+            val profile = dao.profile()?.takeIf { it.onboardingDone } ?: return ManualSleepResult.Unavailable
+            val session = ManualSleep.session(d, onset, wake, zone) ?: return ManualSleepResult.Invalid
+            if (hc.availability() != HcAvailability.AVAILABLE) return ManualSleepResult.Unavailable
+            val granted = hc.grantedPermissions()
+            val reader = HcReader(hc.client, zone)
+            val hasHr = HcPermissions.HEART_RATE in granted
+            val hasExercise = HcPermissions.EXERCISE in granted
+            if (HcPermissions.SLEEP in granted) backfillSleep(reader, d, hasHr)
+            val acwr = if (hasHr && hasExercise) updateLoads(reader, d, profile) else null
+            val entity = scoreWithSession(reader, d, session, hasHr, acwr)
+            dao.deleteAdvice(DateRules.key(d))
+            ManualSleepResult.Saved(entity)
+        }
+        if (result is ManualSleepResult.Saved && result.score.score != null) {
+            runCatching { FeedbackService(context).onConfirmed(d, background = false) }
+        }
+        return result
+    }
+
+    /** 수면 세션으로 d의 수면 요약을 저장하고 기준선·점수를 계산해 저장한다 (3)~4) 단계). */
+    private suspend fun scoreWithSession(
+        reader: HcReader, d: LocalDate, session: SleepSessionRaw, hasHr: Boolean, acwr: Double?,
+    ): RecoveryScoreEntity {
+        val summary = saveSleep(reader, d, session, hasHr)
+        val minHr = dao.hr(DateRules.key(d))?.minHr
+
+        // [수정 3] 최근 3일(어젯밤 포함) 총 수면 시간 평균
+        val tstAvg3 = dao.sleepRange(
+            DateRules.key(d.minusDays(Params.MIN_SLEEP_DAYS - 1L)), DateRules.key(d),
+        ).map { it.tstMin }.average()
+        // [수정 2] 워치를 착용한 날이 14일 미만이면 운동 기준선을 쌓는 중
+        val loadBuilding = acwr != null &&
+            dao.wornLoadDays(DateRules.key(d.minusDays(1))) < Params.LOAD_BUILDING_DAYS
+
+        // 4) 기준선 (전날까지 28일) → 점수
+        val baseline = BaselineCalculator.compute(history(d))
+        dao.upsertBaseline(baseline.toEntity(d))
+        val result = RecoveryScorer.score(
+            ScoreInput(summary, minHr, acwr, tstAvg3 = tstAvg3, loadBuilding = loadBuilding), baseline,
+        )
+        val entity = result.toEntity(d)
+        dao.upsertScore(entity)
+        return entity
     }
 
     /** 수면 일별 요약(+수면 중 심박) 저장. */
