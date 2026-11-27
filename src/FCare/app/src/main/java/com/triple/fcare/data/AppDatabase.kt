@@ -67,6 +67,8 @@ interface FCareDao {
     // ---- Gemini 조언 (개선사항 2) ----
     @Upsert suspend fun upsertAdvice(e: AdviceDayEntity)
     @Query("SELECT * FROM advice_day WHERE date = :date") suspend fun advice(date: String): AdviceDayEntity?
+    /** 수면 직접 수정으로 점수를 다시 계산할 때 그날 AI 조언 문장을 지운다 (상세 3.8) */
+    @Query("DELETE FROM advice_day WHERE date = :date") suspend fun deleteAdvice(date: String)
 }
 
 /** 기기 안의 로컬 데이터베이스 (기본설계서 4.1: Room 채택). */

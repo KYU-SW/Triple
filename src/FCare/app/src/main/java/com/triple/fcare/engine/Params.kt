@@ -89,4 +89,8 @@ object Params {
     const val HR_MEDIAN_WINDOW = 3          // 최저 심박 이동 중앙값 창
     const val SYNC_INTERVAL_MIN = 60L       // 백그라운드 확인 간격(분)
     const val DAY_START_HOUR = 4            // 04:00부터 새 점수 날짜
+
+    // ---- 수면 직접 수정 (HOM-15, 상세 3.8) ----
+    const val MANUAL_SLEEP_MIN_MIN = 60L    // 직접 입력 수면 길이 하한(분)
+    const val MANUAL_SLEEP_MAX_MIN = 960L   // 직접 입력 수면 길이 상한(분, 16시간)
 }

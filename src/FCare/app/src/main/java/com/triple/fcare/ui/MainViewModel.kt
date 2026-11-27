@@ -27,6 +27,7 @@ import com.triple.fcare.work.DayFeedback
 import com.triple.fcare.work.FeedbackService
 import com.triple.fcare.work.ScoreCoordinator
 import com.triple.fcare.work.TodayState
+import com.triple.fcare.work.ManualSleepResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZonedDateTime
 
 /** 프로필 상태에 따라 시작 화면이 갈린다 (SPL-02). */
@@ -202,6 +204,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             } finally {
                 _refreshing.value = false
             }
+        }
+    }
+
+    /**
+     * 수면 직접 수정 (HOM-15, 상세 3.8). 점수 날짜의 수면을 잠든·깬 시각으로 바꾸고 점수를 다시 계산한다.
+     * 결과 안내 문구를 onDone으로 돌려준다 (null = 성공).
+     */
+    fun saveManualSleep(onset: LocalTime, wake: LocalTime, onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            val d = DateRules.scoreDate(ZonedDateTime.now())
+            val msg = try {
+                when (coordinator.applyManualSleep(d, onset, wake)) {
+                    is ManualSleepResult.Saved -> null
+                    ManualSleepResult.Invalid -> "깬 시각은 잠든 시각보다 뒤여야 하고, 1시간 이상 16시간 이하만 저장할 수 있어요."
+                    ManualSleepResult.Unavailable -> "Health Connect를 쓸 수 없어 저장하지 못했어요."
+                }
+            } catch (e: Exception) {
+                "저장하지 못했어요. 다시 시도해 주세요."
+            }
+            onDone(msg)
+            if (msg == null) refresh()
         }
     }
 

@@ -29,12 +29,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import com.triple.fcare.engine.ManualSleep
+import com.triple.fcare.engine.SleepMetrics
+import kotlinx.coroutines.launch
+import java.time.ZoneId
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +62,7 @@ import com.triple.fcare.hc.HcPermissions
 import com.triple.fcare.ui.theme.AccentText
 import com.triple.fcare.ui.theme.Dim
 import com.triple.fcare.ui.theme.FcText
+import com.triple.fcare.ui.theme.GradeTiredText
 import com.triple.fcare.ui.theme.Radius
 import com.triple.fcare.ui.theme.Space
 import com.triple.fcare.ui.theme.TextPrimary
@@ -111,6 +124,8 @@ fun HomeScreen(
     val refreshing by vm.refreshing.collectAsState()
     val granted by vm.granted.collectAsState()
     val lastRefreshAt by vm.lastRefreshAt.collectAsState()   // 마지막 갱신 시각 (X4, 앱을 다시 켜도 남음)
+    var editSleep by remember { mutableStateOf(false) }       // 수면 직접 수정 창 (HOM-15)
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { vm.refresh() }   // 앱 실행·홈 진입 시 즉시 확인 (기본설계서 3.3)
     // X4 새로고침 실패: 블록이 아니라 스낵바 (원인 글은 화면에 보이지 않음)
@@ -156,7 +171,7 @@ fun HomeScreen(
             // ---- B3 어제 걸음 수 · 어제 수면 시간 ----
             TileRow(
                 { m -> StepsTile(steps, onRequestSteps, m) },
-                { m -> SleepTile(today, detail, m) },
+                { m -> SleepTile(today, detail, m, onEdit = if (today is TodayState.Done || today is TodayState.Waiting) ({ editSleep = true }) else null) },
             )
 
             // ---- B4 운동 부하 비율 ----
@@ -187,6 +202,22 @@ fun HomeScreen(
     }
 
     if (!profile.guideSeen) GuideDialog { vm.markGuideSeen() }   // HOM-10: 최초 사용 시 안내
+    if (editSleep) {
+        SleepEditDialog(
+            scoreDate = detail?.date ?: LocalDate.now(),
+            initialOnsetMin = detail?.sleep?.onsetMin,
+            initialWakeMin = detail?.sleep?.wakeMin,
+            onDismiss = { editSleep = false },
+            onSave = { onset, wake, showError ->
+                vm.saveManualSleep(onset, wake) { msg ->
+                    if (msg == null) {
+                        editSleep = false
+                        scope.launch { snackbar.showSnackbar("수면을 고치고 회복 점수를 다시 계산했어요") }
+                    } else showError(msg)
+                }
+            },
+        )
+    }
 }
 
 /** "07:42", 어제 이전이면 "11/19 23:10" */
@@ -237,7 +268,7 @@ private fun ScoreCard(vm: MainViewModel, today: TodayState?, detail: DayDetail?,
                 Text("${untilLabel(LocalDate.parse(shown.date), baseDate ?: LocalDate.now())}까지의 점수예요.",
                     style = FcText.sm.copy(fontWeight = FontWeight.SemiBold), color = TextSecondary)
                 Text("오늘은 수면 기록이 12:00까지 오지 않았어요.", style = FcText.sm, color = TextTertiary)
-            } else ScoreBody(today.score, detail?.baseline?.nNights)
+            } else ScoreBody(today.score, detail?.baseline?.nNights, manual = ManualSleep.isManual(detail?.sleep?.source))
             is TodayState.Waiting -> {   // S2 대기
                 Text("기다리는 중", style = FcText.x2l, color = TextPrimary)
                 Spacer(Modifier.height(Space.s1))
@@ -262,7 +293,7 @@ private fun ScoreCard(vm: MainViewModel, today: TodayState?, detail: DayDetail?,
 }
 
 @Composable
-private fun ScoreBody(e: RecoveryScoreEntity, baselineNights: Int?) {
+private fun ScoreBody(e: RecoveryScoreEntity, baselineNights: Int?, manual: Boolean = false) {
     if (e.status == ScoreStatus.NO_DATA.name || e.score == null) {   // S3 데이터 부족
         Text("데이터 부족", style = FcText.x2l, color = TextPrimary)
         Spacer(Modifier.height(Space.s1))
@@ -284,6 +315,7 @@ private fun ScoreBody(e: RecoveryScoreEntity, baselineNights: Int?) {
         if (e.status == ScoreStatus.PARTIAL.name) add("일부 데이터로 계산")
         if (baselineNights != null && baselineNights < Params.BUILDING_DAYS) add("기준선 쌓는 중 $baselineNights/${Params.BUILDING_DAYS}일")
         if (e.loadBuilding) add("운동 기준선 쌓는 중")
+        if (manual) add("직접 입력한 수면")
     }
     if (chips.isNotEmpty()) {
         Spacer(Modifier.height(Space.s1))
@@ -317,14 +349,16 @@ private fun StepsTile(steps: StepsUi, onRequest: (() -> Unit)?, modifier: Modifi
     }
 }
 
-/** B3 오른쪽: 어제 수면 시간 (점수 계산에 쓴 어젯밤 수면) */
+/** B3 오른쪽: 어제 수면 시간 (점수 계산에 쓴 어젯밤 수면). 누르면 잠든·깬 시각을 직접 고침 (HOM-15) */
 @Composable
-private fun SleepTile(today: TodayState?, detail: DayDetail?, modifier: Modifier) {
+private fun SleepTile(today: TodayState?, detail: DayDetail?, modifier: Modifier, onEdit: (() -> Unit)? = null) {
     val sleep = detail?.sleep
     if (sleep != null) {
         val m = sleep.tstMin.roundToInt()
-        MetricTile("어제 수면 시간", "", "점수에 반영된 수면", modifier = modifier, icon = Icons.Rounded.Bedtime,
-            parts = listOf("${m / 60}" to "시간", "${m % 60}" to "분"))
+        val manual = ManualSleep.isManual(sleep.source)
+        MetricTile("어제 수면 시간", "", if (manual) "직접 입력한 수면" else "점수에 반영된 수면", modifier = modifier,
+            icon = Icons.Rounded.Bedtime, parts = listOf("${m / 60}" to "시간", "${m % 60}" to "분"),
+            caption2 = if (onEdit != null) "눌러서 수정 ›" else null, onClick = onEdit)
     } else {
         val why = when (today) {
             is TodayState.Waiting -> "기다리는 중"
@@ -332,7 +366,85 @@ private fun SleepTile(today: TodayState?, detail: DayDetail?, modifier: Modifier
             TodayState.HcUnavailable -> "연결 필요"
             else -> "기록 없음"
         }
-        MetricTile("어제 수면 시간", "—", why, modifier = modifier, icon = Icons.Rounded.Bedtime)
+        MetricTile("어제 수면 시간", "—", why, modifier = modifier, icon = Icons.Rounded.Bedtime,
+            caption2 = if (onEdit != null) "눌러서 직접 입력 ›" else null, onClick = onEdit)
+    }
+}
+
+/** 18:00 기준 경과 분 → 시각 (저장된 수면을 수정 창의 처음 값으로 쓸 때) */
+private fun timeFrom18(min: Double?, fallback: LocalTime): LocalTime =
+    min?.let { LocalTime.of(18, 0).plusMinutes(it.roundToInt().toLong()) } ?: fallback
+
+/**
+ * 수면 직접 수정 창 (HOM-15, 상세 3.8): 잠든 시각·깬 시각을 고르고 총 수면 시간을 미리 보여 준다.
+ * 깬 시각은 점수 날짜, 잠든 시각은 18:00 이후면 전날 밤으로 본다. 1시간 미만·16시간 초과는 저장 버튼을 막는다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepEditDialog(
+    scoreDate: LocalDate,
+    initialOnsetMin: Double?,
+    initialWakeMin: Double?,
+    onDismiss: () -> Unit,
+    onSave: (LocalTime, LocalTime, (String) -> Unit) -> Unit,
+) {
+    var onset by remember { mutableStateOf(timeFrom18(initialOnsetMin, LocalTime.of(23, 0))) }
+    var wake by remember { mutableStateOf(timeFrom18(initialWakeMin, LocalTime.of(7, 0))) }
+    var picking by remember { mutableStateOf<Int?>(null) }   // 0 = 잠든 시각, 1 = 깬 시각
+    var error by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val session = ManualSleep.session(scoreDate, onset, wake, ZoneId.systemDefault())
+    val tst = session?.let { SleepMetrics.summarize(it, ZoneId.systemDefault()).tstMin.roundToInt() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("어젯밤 수면 고치기") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Space.s2)) {
+                Text("워치 기록 대신 직접 입력한 시각으로 오늘 회복 점수를 다시 계산해요. 수면 효율은 빼고 계산해요.",
+                    style = FcText.sm, color = TextSecondary)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("잠든 시각", style = FcText.base, color = TextPrimary, modifier = Modifier.weight(1f))
+                    TextButton({ picking = 0 }) { Text(onset.format(HM)) }
+                }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("깬 시각", style = FcText.base, color = TextPrimary, modifier = Modifier.weight(1f))
+                    TextButton({ picking = 1 }) { Text(wake.format(HM)) }
+                }
+                Text(
+                    if (tst != null) "총 수면 ${tst / 60}시간 ${tst % 60}분"
+                    else "깬 시각은 잠든 시각보다 뒤여야 하고, 1시간 이상 16시간 이하만 저장할 수 있어요.",
+                    style = FcText.sm, color = if (tst != null) TextPrimary else GradeTiredText,
+                )
+                error?.let { Text(it, style = FcText.sm, color = GradeTiredText) }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = tst != null && !saving, onClick = {
+                saving = true
+                error = null
+                onSave(onset, wake) { msg -> error = msg; saving = false }
+            }) { Text(if (saving) "저장하는 중" else "저장") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("취소") } },
+    )
+
+    picking?.let { which ->
+        val initial = if (which == 0) onset else wake
+        val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { picking = null },
+            title = { Text(if (which == 0) "잠든 시각" else "깬 시각") },
+            text = { TimePicker(state = state) },
+            confirmButton = {
+                TextButton({
+                    val t = LocalTime.of(state.hour, state.minute)
+                    if (which == 0) onset = t else wake = t
+                    picking = null
+                }) { Text("확인") }
+            },
+            dismissButton = { TextButton({ picking = null }) { Text("취소") } },
+        )
     }
 }
 

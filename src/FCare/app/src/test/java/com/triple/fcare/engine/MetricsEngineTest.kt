@@ -9,7 +9,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 /**
- * 단위시험 U-23 ~ U-31: 워치 원자료를 지표·기준선으로 바꾸는 계산 (상세설계서 3.2 ~ 3.4, 4.2, 4.4).
+ * 단위시험 U-23 ~ U-34: 워치 원자료·직접 입력 수면을 지표·기준선으로 바꾸는 계산 (상세설계서 3.2 ~ 3.4, 3.8, 4.2, 4.4).
  * U-01 ~ U-22는 이미 계산된 지표에서 시작하므로, 그 앞 단계를 여기서 따로 시험한다.
  * 시각은 UTC 기준으로 만든다 (기기 시간대와 무관하게 같은 결과).
  */
@@ -162,5 +162,41 @@ class MetricsEngineTest {
         assertEquals(10.71, LoadModel.initial(ExerciseFreq.W1_2).ctl, 0.01)
         assertEquals(25.0, LoadModel.initial(ExerciseFreq.W3_4).atl, 1e-9)
         assertEquals(39.29, LoadModel.initial(ExerciseFreq.W5_PLUS).ctl, 0.01)
+    }
+
+    /* ---------- 수면 직접 수정 (HOM-15, 상세 3.8) ---------- */
+
+    private val d16 = java.time.LocalDate.of(2026, 11, 16)
+    private fun hm(h: Int, m: Int) = java.time.LocalTime.of(h, m)
+
+    @Test fun `U-32 직접 입력 수면 - 18시 이후 잠들면 전날 밤`() {
+        val s = ManualSleep.session(d16, hm(23, 30), hm(7, 0), zone)!!
+        assertEquals(t(15, 23, 30), s.startMillis)
+        assertEquals(t(16, 7, 0), s.endMillis)
+        assertTrue(ManualSleep.isManual(s.source))
+        val r = SleepMetrics.summarize(s, zone)
+        assertEquals(450.0, r.tstMin, 1e-9)
+        assertNull(r.efficiency)
+        assertEquals(330.0, r.onsetMin, 1e-9)
+        assertEquals(780.0, r.wakeMin, 1e-9)
+    }
+
+    @Test fun `U-33 직접 입력 수면 - 자정 넘어 잠들면 같은 날 새벽`() {
+        val s = ManualSleep.session(d16, hm(1, 0), hm(8, 30), zone)!!
+        assertEquals(t(16, 1, 0), s.startMillis)
+        assertEquals(t(16, 8, 30), s.endMillis)
+        val r = SleepMetrics.summarize(s, zone)
+        assertEquals(450.0, r.tstMin, 1e-9)
+        assertNull(r.efficiency)
+        assertEquals(420.0, r.onsetMin, 1e-9)
+        assertEquals(870.0, r.wakeMin, 1e-9)
+    }
+
+    @Test fun `U-34 직접 입력 허용 범위 - 1시간 이상 16시간 이하`() {
+        assertNull(ManualSleep.session(d16, hm(7, 0), hm(6, 0), zone))     // 깬 시각이 잠든 시각보다 앞
+        assertNull(ManualSleep.session(d16, hm(3, 0), hm(3, 30), zone))    // 30분
+        assertNull(ManualSleep.session(d16, hm(18, 0), hm(12, 0), zone))   // 18시간
+        val ok = ManualSleep.session(d16, hm(23, 0), hm(0, 0), zone)!!     // 정확히 1시간
+        assertEquals(60.0, SleepMetrics.summarize(ok, zone).tstMin, 1e-9)
     }
 }
